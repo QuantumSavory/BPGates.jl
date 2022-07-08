@@ -1,0 +1,8 @@
+name = "BPGates"
+uuid = "2c1a90cd-bec4-4415-ae35-245016909a8f"
+authors = ["ShuGe-MIT <geshu@mit.edu>"]
+version = "0.1.0"
+
+[deps]
+Permutations = "2ae35dd2-176d-5d53-8349-f30d82d94d4f"
+QuantumClifford = "0525e862-1e90-11e9-3e4d-1b39d7109de1"
