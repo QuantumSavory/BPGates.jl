@@ -79,7 +79,7 @@ struct BellMeasure <: BellOp
     sidx
 end
 
-Base.getindex(a::AbstractVector, b::BitVector)=a[b.chunks[1]]
+# Base.getindex(a::AbstractVector, b::BitVector)=a[b.chunks[1]]
 
 ##############################
 # Helper functions
