@@ -85,6 +85,7 @@ struct BellMeasure <: BellOp
     sidx::Int
 end
 
+
 ##############################
 # Helper functions
 ##############################
