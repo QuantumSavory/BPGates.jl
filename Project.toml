@@ -1,6 +1,6 @@
 name = "BPGates"
 uuid = "2c1a90cd-bec4-4415-ae35-245016909a8f"
-authors = ["ShuGe-MIT <geshu@mit.edu>"]
+authors = ["ShuGe-MIT <geshu@mit.edu>", "Stefan Krastanov <stefan@krastanov.org>"]
 version = "0.1.0"
 
 [deps]
