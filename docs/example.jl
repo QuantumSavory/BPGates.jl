@@ -14,6 +14,10 @@ state2 = copy(state) # copy the state
 
 gate = BellGateQC(1,14,2,1,1,2)
 # range of inputs: pauli: 1-6, double: 1-20, single1: 1-6, single2: 1-6, index1: 1-num_bell, index2: 1-num_bell
+gate1 = BellPauliPermutation(1,(1,2))
+gate2 = BellDoublePermutation(14,(1,2))
+gate3 = BellSinglePermutation(2,1)
+
 
 apply_op!(state, gate)
 apply_as_qc!(state2, gate)

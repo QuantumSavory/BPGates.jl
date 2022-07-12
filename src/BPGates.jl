@@ -9,9 +9,15 @@ function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing convenctions
     Bool[int>>shift&0x1 for shift in 0:digits-1]
 end
+function int_to_bit(int,::Val{2}) # faster if we know we need only two bits
+    int = int - 1 # -1 so that we use julia indexing convenctions
+    int & 0x1, int>>1 & 0x1
+end
 function bit_to_int(bits)
     reduce(⊻,(bit<<(index-1) for (index,bit) in enumerate(bits))) + 1 # +1 so that we use julia indexing convenctions
 end
+# faster version when we know how many bits we have (because we know do not need to iterate)
+bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing convenctions
 
 @assert all(bit_to_int(int_to_bit(n,4))==n for n in 1:2^4)
 
@@ -79,8 +85,6 @@ struct BellMeasure <: BellOp
     sidx::Int
 end
 
-Base.getindex(a::AbstractVector, b::BitVector)=a[b.chunks[1]]
-
 ##############################
 # Helper functions
 ##############################
@@ -91,26 +95,32 @@ Base.copy(state::BellState) = BellState(copy(state.phases))
 # Permutations
 ##############################
 
+const one_perm_tuples = (
+    (1, 2, 3, 4),
+    (1, 3, 2, 4),
+    (3, 1, 2, 4),
+    (3, 2, 1, 4),
+    (2, 3, 1, 4),
+    (2, 1, 3, 4)
+)
 function apply_op!(state::BellState, op::BellSinglePermutation)
     phase = state.phases
-    phase[op.sidx*2-1:op.sidx*2] = int_to_bit(one_perm[op.pidx][bit_to_int(phase[op.sidx*2-1:op.sidx*2])],2)
-    return BellState(phase),:continue
-end
-
-function apply_op!(state::BellState, op::BellDoublePermutation)
-    phase = state.phases
-    changed_phases = int_to_bit(two_perm[op.pidx][bit_to_int(vcat(phase[op.sidx[1]*2-1:op.sidx[1]*2],phase[op.sidx[2]*2-1:op.sidx[2]*2]))],4)
-    phase[op.sidx[1]*2-1:op.sidx[1]*2] = changed_phases[1:2]
-    phase[op.sidx[2]*2-1:op.sidx[2]*2] = changed_phases[3:4]
-    return BellState(phase),:continue
+    phase_idx = bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])
+    perm = one_perm[op.pidx]
+    permuted_idx = perm[phase_idx]
+    bit1, bit2 = int_to_bit(permuted_idx,Val(2))
+    phase[op.sidx*2-1] = bit1
+    phase[op.sidx*2] = bit2
+    return state, :continue
 end
 
 function apply_op!(state::BellState, op::BellPauliPermutation)
     phase = state.phases
+    # TODO this allocates a lot, can the change be computed without making a whole new array?
     changed_phases = int_to_bit(pauli_perm[op.pidx][bit_to_int(vcat(phase[op.sidx[1]*2-1:op.sidx[1]*2],phase[op.sidx[2]*2-1:op.sidx[2]*2]))],4)
     phase[op.sidx[1]*2-1:op.sidx[1]*2] = changed_phases[1:2]
     phase[op.sidx[2]*2-1:op.sidx[2]*2] = changed_phases[3:4]
-    return BellState(phase),:continue
+    return state, :continue
 end
 
 ##############################
