@@ -7,11 +7,17 @@ export int_to_bit, bit_to_int, copy_state, BellState, BellSinglePermutation, Bel
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing convenctions
-    Bool[int>>shift&0x1 for shift in 0:digits-1]    
+    Bool[int>>shift&0x1 for shift in 0:digits-1]
+end
+function int_to_bit(int,::Val{2}) # faster if we know we need only two bits
+    int = int - 1 # -1 so that we use julia indexing convenctions
+    int & 0x1, int>>1 & 0x1
 end
 function bit_to_int(bits)
     reduce(⊻,(bit<<(index-1) for (index,bit) in enumerate(bits))) + 1 # +1 so that we use julia indexing convenctions
 end
+# faster version when we know how many bits we have (because we know do not need to iterate)
+bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing convenctions
 
 @assert all(bit_to_int(int_to_bit(n,4))==n for n in 1:2^4)
 
@@ -61,58 +67,61 @@ end
 
 struct BellPauliPermutation <:BellOp
     pidx::UInt
-    sidx
+    sidx::Tuple{Int,Int}
 end
 
 struct BellSinglePermutation <:BellOp
     pidx::UInt
-    sidx
+    sidx::Int
 end
 
 struct BellDoublePermutation <:BellOp
     pidx::UInt
-    sidx
+    sidx::Tuple{Int,Int}
 end
 
 struct BellMeasure <: BellOp
     midx::Int
-    sidx
+    sidx::Int
 end
 
-# Base.getindex(a::AbstractVector, b::BitVector)=a[b.chunks[1]]
 
 ##############################
 # Helper functions
 ##############################
 
-function copy_state(state::BellState)
-    return BellState(copy(state.phases))    
-end
+Base.copy(state::BellState) = BellState(copy(state.phases))
 
 ##############################
 # Permutations
 ##############################
 
+const one_perm_tuples = (
+    (1, 2, 3, 4),
+    (1, 3, 2, 4),
+    (3, 1, 2, 4),
+    (3, 2, 1, 4),
+    (2, 3, 1, 4),
+    (2, 1, 3, 4)
+)
 function apply_op!(state::BellState, op::BellSinglePermutation)
     phase = state.phases
-    phase[op.sidx*2-1:op.sidx*2] = int_to_bit(one_perm[op.pidx][bit_to_int(phase[op.sidx*2-1:op.sidx*2])],2)
-    return BellState(phase),:continue
-end
-
-function apply_op!(state::BellState, op::BellDoublePermutation) 
-    phase = state.phases
-    changed_phases = int_to_bit(two_perm[op.pidx][bit_to_int(vcat(phase[op.sidx[1]*2-1:op.sidx[1]*2],phase[op.sidx[2]*2-1:op.sidx[2]*2]))],4)
-    phase[op.sidx[1]*2-1:op.sidx[1]*2] = changed_phases[1:2]
-    phase[op.sidx[2]*2-1:op.sidx[2]*2] = changed_phases[3:4]
-    return BellState(phase),:continue
+    phase_idx = bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])
+    perm = one_perm[op.pidx]
+    permuted_idx = perm[phase_idx]
+    bit1, bit2 = int_to_bit(permuted_idx,Val(2))
+    phase[op.sidx*2-1] = bit1
+    phase[op.sidx*2] = bit2
+    return state, :continue
 end
 
 function apply_op!(state::BellState, op::BellPauliPermutation)
     phase = state.phases
+    # TODO this allocates a lot, can the change be computed without making a whole new array?
     changed_phases = int_to_bit(pauli_perm[op.pidx][bit_to_int(vcat(phase[op.sidx[1]*2-1:op.sidx[1]*2],phase[op.sidx[2]*2-1:op.sidx[2]*2]))],4)
     phase[op.sidx[1]*2-1:op.sidx[1]*2] = changed_phases[1:2]
     phase[op.sidx[2]*2-1:op.sidx[2]*2] = changed_phases[3:4]
-    return BellState(phase),:continue
+    return state, :continue
 end
 
 ##############################
@@ -126,7 +135,7 @@ end
 
 const rmeasurement=mresult
 
-function apply_op!(state::BellState, op::BellMeasure) 
+function apply_op!(state::BellState, op::BellMeasure)
     phase = state.phases
     result = apply_op!(phase[op.sidx*2-1:op.sidx*2], op)
     phase[op.sidx*2-1:op.sidx*2]=BitVector([0,0]) # reset the measured pair to 00
@@ -147,26 +156,19 @@ end
 ##############################
 
 struct BellGateQC
-    pauli
-    double
-    single1
-    single2
-    idx1
-    idx2
+    pauli::Int
+    double::Int
+    single1::Int
+    single2::Int
+    idx1::Int
+    idx2::Int
 end
 
 function apply_op!(state, g::BellGateQC)
-    circuit = [
-    BellPauliPermutation(g.pauli,[g.idx1,g.idx2]),
-    BellDoublePermutation(g.double,[g.idx1,g.idx2]),
-    BellSinglePermutation(g.single1,g.idx1),
-    BellSinglePermutation(g.single2,g.idx2)
-    ]
-    for op in circuit
-        if apply_op!(state,op)[end]==:detected_error
-            return state, :detected_error
-        end
-    end
+    apply_op!(state, BellPauliPermutation(g.pauli,(g.idx1,g.idx2)))
+    apply_op!(state, BellDoublePermutation(g.double,(g.idx1,g.idx2)))
+    apply_op!(state, BellSinglePermutation(g.single1,g.idx1))
+    apply_op!(state, BellSinglePermutation(g.single2,g.idx2))
     return state, :continue
 end
 
@@ -215,8 +217,8 @@ C"YX Y_ _Y ZY"];
 
 const pauli_perm_qc = [P"II",P"XI",P"ZI",P"YI"];
 
-function rand_state(num_bell) 
-    return BellState(int_to_bit(rand(1:4^num_bell),num_bell*2)) 
+function rand_state(num_bell)  # TODO this would fail above 32 Bell pairs
+    return BellState(int_to_bit(rand(1:4^num_bell),num_bell*2))
 end
 
 function convert2QC(gate::BellGateQC)
@@ -256,7 +258,7 @@ function apply_as_qc!(state::BellState, gate::BellMeasure)
     s = MixedDestabilizer(convert2QC(state))
     if gate.midx == 1
         res = (projectXrand!(s,gate.sidx*2-1)[2]==projectXrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
-        
+
     elseif gate.midx == 2
         res = !(projectYrand!(s,gate.sidx*2-1)[2]==projectYrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
     else
