@@ -1,7 +1,6 @@
 using Revise
 using BenchmarkTools
 using BPGates
-using QuantumClifford
 
 num_bell = 4
 
@@ -18,7 +17,7 @@ gate1 = BellPauliPermutation(1,(1,2))
 gate2 = BellDoublePermutation(14,(1,2))
 gate3 = BellSinglePermutation(2,1)
 
-
+@benchmark apply_op!(state, gate)
 apply_op!(state, gate)
 apply_as_qc!(state2, gate)
 

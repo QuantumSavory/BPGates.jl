@@ -1,6 +1,5 @@
 module BPGates
 
-using Permutations
 using QuantumClifford
 
 export int_to_bit, bit_to_int, copy_state, BellState, BellSinglePermutation, BellDoublePermutation, BellPauliPermutation, BellMeasure, BellGateQC, apply_op!, rand_state, stab2qidx, apply_as_qc!, convert2QC
