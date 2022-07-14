@@ -24,10 +24,10 @@ apply_as_qc!(state2, gate)
 
 @assert state.phases == state2.phases # resultant state after applying gates are the same
 
-res = apply_op!(state, BellMeasure(1,1))[end] # measure index: 1-3, bell index: 1-num_bell
-res2 = apply_as_qc!(state2, BellMeasure(1,1))[end]
+res = apply_op!(state, BellMeasure(1,1)) # measure index: 1-3, bell index: 1-num_bell
+res2 = apply_as_qc!(state2, BellMeasure(1,1))
 
-@assert res == res2 # measurement results are the same
+@assert res[end] == res2[end] # measurement results are the same
 
 ##################
 ## apply circuits
@@ -43,7 +43,7 @@ apply_as_qc!(state2, circuit)
 
 @assert state.phases == state2.phases # resultant state after applying gates are the same
 
-res = apply_op!(state, BellMeasure(1,1))[end] # measure index: 1-3, bell index: 1-num_bell
-res2 = apply_as_qc!(state2, BellMeasure(1,1))[end]
+res = apply_op!(state, BellMeasure(1,1)) # measure index: 1-3, bell index: 1-num_bell
+res2 = apply_as_qc!(state2, BellMeasure(1,1))
 
-@assert res == res2 # measurement results are the same
+@assert res[end] == res2[end] # measurement results are the same
