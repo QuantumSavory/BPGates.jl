@@ -1,13 +1,14 @@
 module BPGates
 
 using QuantumClifford
+using QuantumClifford.Experimental.NoisyCircuits
 
 export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGateQC,
     rand_state,
-    stab2qidx, apply_as_qc!, convert2QC
+    apply_as_qc!, convert2QC
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing convenctions
@@ -28,6 +29,7 @@ end
 @inline bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing convenctions
 @inline bit_to_int(bit1,bit2,bit3,bit4) = bit1 ⊻ bit2<<1 ⊻ bit3<<2 ⊻ bit4<<3 + 1 # +1 so that we use julia indexing convenctions
 
+"""TODO docs"""
 struct BellState
     phases::BitVector
 end
@@ -36,21 +38,25 @@ Base.copy(state::BellState) = BellState(copy(state.phases))
 
 abstract type BellOp <: QuantumClifford.AbstractCliffordOperator end
 
+"""TODO docs"""
 struct BellPauliPermutation <: BellOp
     pidx::Int
     sidx::Tuple{Int,Int}
 end
 
+"""TODO docs"""
 struct BellSinglePermutation <: BellOp
     pidx::Int
     sidx::Int
 end
 
+"""TODO docs"""
 struct BellDoublePermutation <: BellOp
     pidx::Int
     sidx::Tuple{Int,Int}
 end
 
+"""TODO docs"""
 struct BellMeasure <: QuantumClifford.AbstractMeasurement
     midx::Int
     sidx::Int
@@ -147,6 +153,7 @@ const measure_tuple = (
     (false, true, false)
 )
 
+"""TODO docs"""
 function bellmeasure!(state::BellState, op::BellMeasure)
     phase = state.phases
     result = measure_tuple[bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])][op.midx]
@@ -154,10 +161,17 @@ function bellmeasure!(state::BellState, op::BellMeasure)
     return state, result
 end
 
+# TODO remove Experimental.NoisyCircuits namespacing when possible
+function QuantumClifford.Experimental.NoisyCircuits.applywstatus!(state::BellState, op::BellMeasure)
+    state, result = bellmeasure!(state, op)
+    state, result ? QuantumClifford.Experimental.NoisyCircuits.continue_stat : QuantumClifford.Experimental.NoisyCircuits.failure_stat
+end
+
 ##############################
 # Full BP gate
 ##############################
 
+"""TODO docs"""
 struct BellGateQC
     pauli::Int
     double::Int
@@ -215,9 +229,13 @@ const two_perm_qc = (
 
 const pauli_perm_qc = (P"II",P"XI",P"ZI",P"YI")
 
+"""TODO docs"""
 function rand_state(num_bell)  # TODO this would fail above 32 Bell pairs
     return BellState(int_to_bit(rand(1:4^num_bell),num_bell*2))
 end
+
+"""TODO docs"""
+function convert2QC end
 
 function convert2QC(gate::BellGateQC)
     return [
@@ -241,6 +259,9 @@ function convert2BP(state::Stabilizer)
     return BellState(stab2qidx(state))
 end
 
+"""TODO docs"""
+function apply_as_qc! end
+
 function apply_as_qc!(state::BellState, gate::BellGateQC)
     s = convert2QC(state)
     for (g, idx) in convert2QC(gate)
@@ -248,7 +269,7 @@ function apply_as_qc!(state::BellState, gate::BellGateQC)
     end
     new_phases = [project!(s,proj)[end]÷2 for proj in bell(length(state.phases)÷2)]
     state.phases .= new_phases
-    return state, :continue
+    return state
 end
 
 function apply_as_qc!(state::BellState, gate::BellMeasure)
@@ -257,7 +278,7 @@ function apply_as_qc!(state::BellState, gate::BellMeasure)
     if gate.midx == 1
         res = (projectXrand!(s,gate.sidx*2-1)[2]==projectXrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
     elseif gate.midx == 2
-        res = !(projectYrand!(s,gate.sidx*2-1)[2]==projectYrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
+        res = (projectYrand!(s,gate.sidx*2-1)[2]!=projectYrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
     else
         res = (projectZrand!(s,gate.sidx*2-1)[2]==projectZrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
     end
