@@ -70,13 +70,13 @@ const one_perm_tuple = (
 )
 function apply_op!(state::BellState, op::BellSinglePermutation)
     phase = state.phases
-    phase_idx = bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])
-    perm = one_perm_tuple[op.pidx]
-    permuted_idx = perm[phase_idx]
+    @inbounds phase_idx = bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])
+    @inbounds perm = one_perm_tuple[op.pidx]
+    @inbounds permuted_idx = perm[phase_idx]
     bit1, bit2 = int_to_bit(permuted_idx,Val(2))
-    phase[op.sidx*2-1] = bit1
-    phase[op.sidx*2] = bit2
-    return state, :continue
+    @inbounds phase[op.sidx*2-1] = bit1
+    @inbounds phase[op.sidx*2] = bit2
+    return state
 end
 
 const pauli_perm_tuple = (
@@ -88,15 +88,15 @@ const pauli_perm_tuple = (
 
 function apply_op!(state::BellState, op::BellPauliPermutation)
     phase = state.phases
-    phase_idx = bit_to_int(phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2])
-    perm = pauli_perm_tuple[op.pidx]
-    permuted_idx = perm[phase_idx]
+    @inbounds phase_idx = bit_to_int(phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2])
+    @inbounds perm = pauli_perm_tuple[op.pidx]
+    @inbounds permuted_idx = perm[phase_idx]
     changed_phases = int_to_bit(permuted_idx, Val(4))
-    phase[op.sidx[1]*2-1] = changed_phases[1]
-    phase[op.sidx[1]*2] = changed_phases[2]
-    phase[op.sidx[2]*2-1] = changed_phases[3]
-    phase[op.sidx[2]*2] = changed_phases[4]
-    return state, :continue
+    @inbounds phase[op.sidx[1]*2-1] = changed_phases[1]
+    @inbounds phase[op.sidx[1]*2] = changed_phases[2]
+    @inbounds phase[op.sidx[2]*2-1] = changed_phases[3]
+    @inbounds phase[op.sidx[2]*2] = changed_phases[4]
+    return state
 end
 
 const double_perm_tuple = ((1, 2, 3, 4, 9, 10, 11, 12, 5, 6, 7, 8, 13, 14, 15, 16),
@@ -122,15 +122,15 @@ const double_perm_tuple = ((1, 2, 3, 4, 9, 10, 11, 12, 5, 6, 7, 8, 13, 14, 15, 1
 
 function apply_op!(state::BellState, op::BellDoublePermutation)
     phase = state.phases
-    phase_idx = bit_to_int(phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2])
-    perm = double_perm_tuple[op.pidx]
-    permuted_idx = perm[phase_idx]
+    @inbounds phase_idx = bit_to_int(phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2])
+    @inbounds perm = double_perm_tuple[op.pidx]
+    @inbounds permuted_idx = perm[phase_idx]
     changed_phases = int_to_bit(permuted_idx, Val(4))
-    phase[op.sidx[1]*2-1] = changed_phases[1]
-    phase[op.sidx[1]*2] = changed_phases[2]
-    phase[op.sidx[2]*2-1] = changed_phases[3]
-    phase[op.sidx[2]*2] = changed_phases[4]
-    return state, :continue
+    @inbounds phase[op.sidx[1]*2-1] = changed_phases[1]
+    @inbounds phase[op.sidx[1]*2] = changed_phases[2]
+    @inbounds phase[op.sidx[2]*2-1] = changed_phases[3]
+    @inbounds phase[op.sidx[2]*2] = changed_phases[4]
+    return state
 end
 
 ##############################
@@ -167,7 +167,7 @@ function apply_op!(state, g::BellGateQC)
     apply_op!(state, BellDoublePermutation(g.double,(g.idx1,g.idx2)))
     apply_op!(state, BellSinglePermutation(g.single1,g.idx1))
     apply_op!(state, BellSinglePermutation(g.single2,g.idx2))
-    return state, :continue
+    return state
 end
 
 function apply_op!(state,circuit)
