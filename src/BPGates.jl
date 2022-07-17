@@ -8,19 +8,20 @@ function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing convenctions
     Bool[int>>shift&0x1 for shift in 0:digits-1]
 end
-function int_to_bit(int,::Val{2}) # faster if we know we need only two bits
+@inline function int_to_bit(int,::Val{2}) # faster if we know we need only two bits
     int = int - 1 # -1 so that we use julia indexing convenctions
     int & 0x1, int>>1 & 0x1
 end
-function int_to_bit(int,::Val{4}) # faster if we know we need only two bits
+@inline function int_to_bit(int,::Val{4}) # faster if we know we need only two bits
     int = int - 1 # -1 so that we use julia indexing convenctions
-    Bool[int>>shift&0x1 for shift in 0:3]
+    int & 0x1, int>>1 & 0x1, int>>2 & 0x1, int>>3 & 0x1
 end
 function bit_to_int(bits)
     reduce(⊻,(bit<<(index-1) for (index,bit) in enumerate(bits))) + 1 # +1 so that we use julia indexing convenctions
 end
 # faster version when we know how many bits we have (because we know do not need to iterate)
-bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing convenctions
+@inline bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing convenctions
+@inline bit_to_int(bit1,bit2,bit3,bit4) = bit1 ⊻ bit2<<1 ⊻ bit3<<2 ⊻ bit4<<3 + 1 # +1 so that we use julia indexing convenctions
 
 abstract type BellOp end
 
@@ -87,12 +88,14 @@ const pauli_perm_tuple = (
 
 function apply_op!(state::BellState, op::BellPauliPermutation)
     phase = state.phases
-    phase_idx = bit_to_int([phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2]])
+    phase_idx = bit_to_int(phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2])
     perm = pauli_perm_tuple[op.pidx]
     permuted_idx = perm[phase_idx]
     changed_phases = int_to_bit(permuted_idx, Val(4))
-    phase[op.sidx[1]*2-1:op.sidx[1]*2] = changed_phases[1:2]
-    phase[op.sidx[2]*2-1:op.sidx[2]*2] = changed_phases[3:4]
+    phase[op.sidx[1]*2-1] = changed_phases[1]
+    phase[op.sidx[1]*2] = changed_phases[2]
+    phase[op.sidx[2]*2-1] = changed_phases[3]
+    phase[op.sidx[2]*2] = changed_phases[4]
     return state, :continue
 end
 
@@ -117,7 +120,7 @@ const double_perm_tuple = ((1, 2, 3, 4, 9, 10, 11, 12, 5, 6, 7, 8, 13, 14, 15, 1
 (9, 7, 6, 12, 5, 11, 10, 8, 16, 2, 3, 13, 4, 14, 15, 1),
 (10, 6, 3, 15, 5, 9, 16, 4, 11, 7, 2, 14, 8, 12, 13, 1))
 
-function apply_op!(state::BellState, op::BellDoublePermutation) 
+function apply_op!(state::BellState, op::BellDoublePermutation)
     phase = state.phases
     phase_idx = bit_to_int([phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2]])
     perm = double_perm_tuple[op.pidx]
