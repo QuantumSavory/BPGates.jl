@@ -122,12 +122,14 @@ const double_perm_tuple = ((1, 2, 3, 4, 9, 10, 11, 12, 5, 6, 7, 8, 13, 14, 15, 1
 
 function apply_op!(state::BellState, op::BellDoublePermutation)
     phase = state.phases
-    phase_idx = bit_to_int([phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2]])
+    phase_idx = bit_to_int(phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2])
     perm = double_perm_tuple[op.pidx]
     permuted_idx = perm[phase_idx]
     changed_phases = int_to_bit(permuted_idx, Val(4))
-    phase[op.sidx[1]*2-1:op.sidx[1]*2] = changed_phases[1:2]
-    phase[op.sidx[2]*2-1:op.sidx[2]*2] = changed_phases[3:4]
+    phase[op.sidx[1]*2-1] = changed_phases[1]
+    phase[op.sidx[1]*2] = changed_phases[2]
+    phase[op.sidx[2]*2-1] = changed_phases[3]
+    phase[op.sidx[2]*2] = changed_phases[4]
     return state, :continue
 end
 
