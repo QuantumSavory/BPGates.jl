@@ -29,7 +29,24 @@ end
 @inline bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing convenctions
 @inline bit_to_int(bit1,bit2,bit3,bit4) = bit1 ⊻ bit2<<1 ⊻ bit3<<2 ⊻ bit4<<3 + 1 # +1 so that we use julia indexing convenctions
 
-"""TODO docs"""
+"""
+A diagonal representation of bell diagonal states that only tracks the phases in front of the stabilizers tableau
+instead of the whole stabilizer tableau.
+
+For example, XX -ZZ is represented as 01.
+
+```jldoctest
+julia> new_state = BellState([0,1,1,0])
+BellState(Bool[0, 1, 1, 0])
+
+julia> new_state.phases
+4-element BitVector:
+ 0
+ 1
+ 1
+ 0
+```
+"""
 struct BellState
     phases::BitVector
 end
@@ -38,25 +55,47 @@ Base.copy(state::BellState) = BellState(copy(state.phases))
 
 abstract type BellOp <: QuantumClifford.AbstractCliffordOperator end
 
-"""TODO docs"""
+"""
+One type of bell preserving gates that only performs a Pauli permutation on one side (in this case, we apply the Pauli 
+gates to Alice side of Bell pairs) of the shared Bell pairs
+pidx can take value of 1-4 representating one of the four pauli permutations available
+sidx is a tuple that indicates which pair of Bell states the Pauli permutation will be applied to
+
+```jldoctest
+julia> BellPauliPermutation(2,(2,3))
+BellPauliPermutation(2, (2, 3))
+```
+"""
 struct BellPauliPermutation <: BellOp
     pidx::Int
     sidx::Tuple{Int,Int}
 end
 
-"""TODO docs"""
+"""
+One type of bell preserving gates that only performs a single permutation
+pidx can take value of 1-6 representating one of the six single qubit permutation (which is a subset of Clifford gates on 1 qubit)
+sidx is an integer of which Bell state the permutation will be applied to. Both Alice and Bob will apply the same one qubit Clifford gates
+"""
 struct BellSinglePermutation <: BellOp
     pidx::Int
     sidx::Int
 end
 
-"""TODO docs"""
+"""
+One type of bell preserving gates that only performs a double permutation
+pidx can take value of 1-20 representating one of the six double qubit permutation (which is a subset of Clifford gates on 2 qubit)
+sidx is an integer of which pair of Bell states the permutation will be applied to. Both Alice and Bob will apply the same two qubit Clifford gates.
+"""
 struct BellDoublePermutation <: BellOp
     pidx::Int
     sidx::Tuple{Int,Int}
 end
 
-"""TODO docs"""
+"""
+Coincidence measurement to detect errors
+midx can take value of 1-3 representing measurement performed in x, y, z basis respectively
+sidx is an integer of which Bell state the measurement is applied to. The state will be reset to 00 after being applied measurement.
+"""
 struct BellMeasure <: QuantumClifford.AbstractMeasurement
     midx::Int
     sidx::Int
@@ -153,7 +192,17 @@ const measure_tuple = (
     (false, true, false)
 )
 
-"""TODO docs"""
+"""
+Apply coincidence measurement on a bell state.
+Return state, false if an error is detected
+The measured state will be reset to 00.
+
+```jldoctest
+julia> bellmeasure!(BellState([0,1,1,1]), BellMeasure(2,1))
+(BellState(Bool[0, 0, 1, 1]), false)
+```
+
+"""
 function bellmeasure!(state::BellState, op::BellMeasure)
     phase = state.phases
     result = measure_tuple[bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])][op.midx]
@@ -171,8 +220,17 @@ end
 # Full BP gate
 ##############################
 
-"""TODO docs"""
-struct BellGateQC
+"""
+Most general representation of a Bell preserving gate on two qubits.
+The general gate consists of a pauli permutation, a double qubit permutation, two single qubit permutations, 
+and two indices indicating which pair of Bell states the general bell preserving gate will be applied to.
+
+```jldoctest
+julia> BellGateQC(3,15,2,1,4,5)
+BellGateQC(3, 15, 2, 1, 4, 5)
+```
+"""
+struct BellGateQC <: BellOp
     pauli::Int
     double::Int
     single1::Int
@@ -187,6 +245,15 @@ function QuantumClifford.apply!(state, g::BellGateQC)
     apply!(state, BellSinglePermutation(g.single1,g.idx1))
     apply!(state, BellSinglePermutation(g.single2,g.idx2))
     return state
+end
+
+function QuantumClifford.apply!(state, circuit)
+    for gate in circuit
+        if apply!(state, gate)[end] == false
+            return state, false
+        end
+    end
+    return state, true
 end
 
 ##############################
@@ -229,13 +296,48 @@ const two_perm_qc = (
 
 const pauli_perm_qc = (P"II",P"XI",P"ZI",P"YI")
 
-"""TODO docs"""
+"""
+Initialize a random Bell diagonal state
+Input is the number of shared Bell pairs in the entanglement network.
+"""
 function rand_state(num_bell)  # TODO this would fail above 32 Bell pairs
     return BellState(int_to_bit(rand(1:4^num_bell),num_bell*2))
 end
 
-"""TODO docs"""
+"""
+Convert a Bell perserving gate or state in BPGates.jl representation to the corresponding 
+Clifford gate or stabilizer formalism in QuantumClifford.jl representation
+
+```jldoctest
+julia> convert2QC(BellSinglePermutation(2,3))
+2-element Vector{Tuple{CliffordOperator{Vector{UInt8}, Matrix{UInt64}}, Vector{Int64}}}:
+ (X ⟼ + Z
+Z ⟼ + X
+, [5])
+ (X ⟼ + Z
+Z ⟼ + X
+, [6])
+
+julia> convert2QC(BellState([1,0,0,1]))
+- XX__
++ ZZ__
++ __XX
+- __ZZ
+```
+"""
 function convert2QC end
+
+function convert2QC(gate::BellSinglePermutation)
+    return [(one_perm_qc[gate.pidx], [gate.sidx*2-1]),
+    (one_perm_qc[gate.pidx], [gate.sidx*2])]
+end
+function convert2QC(gate::BellDoublePermutation)
+    return [(two_perm_qc[gate.pidx], [gate.sidx[1]*2-1, gate.sidx[2]*2-1]),
+    (two_perm_qc[gate.pidx], [gate.sidx[1]*2, gate.sidx[2]*2])]
+end
+function convert2QC(gate::BellPauliPermutation)
+    return [(pauli_perm_qc[gate.pidx], [gate.sidx[1]*2-1, gate.sidx[2]*2-1])]
+end
 
 function convert2QC(gate::BellGateQC)
     return [
@@ -255,32 +357,37 @@ function convert2QC(state::BellState)
     return res
 end
 
-function convert2BP(state::Stabilizer)
-    return BellState(stab2qidx(state))
-end
+"""
+Take in BPGates.jl state and gate and apply the bell preserving gate on a bell diagonal state in terms of QuantumClifford.jl
+formalisms and return results in BPGates.jl formalism.
 
-"""TODO docs"""
+julia> apply_as_qc!(BellState([0,1,1,0]), BellSinglePermutation(2,1))
+(BellState(Bool[1, 0, 1, 0]), true)
+
+julia> apply_as_qc!(BellState([0,1,1,0]), BellMeasure(2,1))
+(BellState(Bool[0, 0, 1, 0]), false)
+"""
 function apply_as_qc! end
 
-function apply_as_qc!(state::BellState, gate::BellGateQC)
+function apply_as_qc!(state::BellState, gate::BellOp)
     s = convert2QC(state)
     for (g, idx) in convert2QC(gate)
         apply!(s, g, idx)
     end
     new_phases = [project!(s,proj)[end]÷2 for proj in bell(length(state.phases)÷2)]
     state.phases .= new_phases
-    return state
+    return state, true
 end
 
 function apply_as_qc!(state::BellState, gate::BellMeasure)
     phases = state.phases[:]
     s = MixedDestabilizer(convert2QC(state))
     if gate.midx == 1
-        res = (projectXrand!(s,gate.sidx*2-1)[2]==projectXrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
+        res = (projectXrand!(s,gate.sidx*2-1)[2]==projectXrand!(s,gate.sidx*2)[2]) ? true : false
     elseif gate.midx == 2
-        res = (projectYrand!(s,gate.sidx*2-1)[2]!=projectYrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
+        res = (projectYrand!(s,gate.sidx*2-1)[2]!=projectYrand!(s,gate.sidx*2)[2]) ? true : false
     else
-        res = (projectZrand!(s,gate.sidx*2-1)[2]==projectZrand!(s,gate.sidx*2)[2]) ? :continue : :detected_error
+        res = (projectZrand!(s,gate.sidx*2-1)[2]==projectZrand!(s,gate.sidx*2)[2]) ? true : false
     end
     phases[gate.sidx*2-1:gate.sidx*2] .=0
     state.phases .= phases
@@ -289,11 +396,11 @@ end
 
 function apply_as_qc!(state::BellState, circuit)
     for op in circuit
-        if apply_as_qc!(state,op)[end]==:detected_error
-            return state, :detected_error
+        if apply_as_qc!(state,op)[end]==false
+            return state, false
         end
     end
-    return state, :continue
+    return state, true
 end
 
 end # module
