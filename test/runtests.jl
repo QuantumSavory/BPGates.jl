@@ -20,7 +20,7 @@ end
 println("Starting tests with $(Threads.nthreads()) threads out of `Sys.CPU_THREADS = $(Sys.CPU_THREADS)`...")
 
 doset("jet")                && haskey(ENV,"QUANTUMCLIFFORD_JET_TEST") && ENV["QUANTUMCLIFFORD_JET_TEST"]=="true" && include("./test_jet.jl")
-doset("allocations")        && VERSION >= v"1.7" && include("./test_allocations.jl")
+#TODO doset("allocations")        && VERSION >= v"1.7" && include("./test_allocations.jl")
 doset("doctests")           && VERSION == v"1.7" && include("./doctests.jl")
 
 using Aqua

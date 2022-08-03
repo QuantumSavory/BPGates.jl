@@ -247,7 +247,7 @@ struct BellGate <: BellOp
     idx2::Int
 end
 
-function QuantumClifford.apply!(state, g::BellGate)
+function QuantumClifford.apply!(state::BellState, g::BellGate)
     apply!(state, BellPauliPermutation(g.pauli,(g.idx1,g.idx2)))
     apply!(state, BellDoublePermutation(g.double,(g.idx1,g.idx2)))
     apply!(state, BellSinglePermutation(g.single1,g.idx1))
@@ -387,7 +387,7 @@ end
 
 function apply_as_qc!(state::BellState, gate::BellMeasure)
     phases = state.phases[:]
-    s = MixedDestabilizer(convert2QC(state))
+    s = MixedDestabilizer(Stabilizer(state))
     if gate.midx == 1
         res = (projectXrand!(s,gate.sidx*2-1)[2]==projectXrand!(s,gate.sidx*2)[2]) ? true : false
     elseif gate.midx == 2
