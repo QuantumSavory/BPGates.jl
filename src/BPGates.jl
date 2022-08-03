@@ -11,22 +11,22 @@ export BellState,
     BellGate
 
 function int_to_bit(int,digits)
-    int = int - 1 # -1 so that we use julia indexing convenctions
+    int = int - 1 # -1 so that we use julia indexing conventions
     Bool[int>>shift&0x1 for shift in 0:digits-1]
 end
 @inline function int_to_bit(int,::Val{2}) # faster if we know we need only two bits
-    int = int - 1 # -1 so that we use julia indexing convenctions
+    int = int - 1 # -1 so that we use julia indexing conventions
     int & 0x1, int>>1 & 0x1
 end
 @inline function int_to_bit(int,::Val{4}) # faster if we know we need only two bits
-    int = int - 1 # -1 so that we use julia indexing convenctions
+    int = int - 1 # -1 so that we use julia indexing conventions
     int & 0x1, int>>1 & 0x1, int>>2 & 0x1, int>>3 & 0x1
 end
 function bit_to_int(bits)
     reduce(⊻,(bit<<(index-1) for (index,bit) in enumerate(bits))) + 1 # +1 so that we use julia indexing convenctions
 end
 # faster version when we know how many bits we have (because we know do not need to iterate)
-@inline bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing convenctions
+@inline bit_to_int(bit1,bit2) = bit1 ⊻ bit2<<1 + 1 # +1 so that we use julia indexing conventions
 @inline bit_to_int(bit1,bit2,bit3,bit4) = bit1 ⊻ bit2<<1 ⊻ bit3<<2 ⊻ bit4<<3 + 1 # +1 so that we use julia indexing convenctions
 
 """
@@ -34,6 +34,8 @@ A diagonal representation of Bell diagonal states that only tracks the phases in
 the stabilizers tableau instead of the whole stabilizer tableau.
 
 For example, `XX -ZZ` is represented as `01`.
+
+The `BellState(n)` constructor will create `n` Bell pairs.
 
 ```jldoctest
 julia> new_state = BellState([0,1,1,0])
@@ -50,6 +52,7 @@ julia> new_state.phases
 struct BellState
     phases::BitVector
 end
+BellState(n::Integer) = BellState(BitVector(undef,2n))
 
 Base.copy(state::BellState) = BellState(copy(state.phases))
 
