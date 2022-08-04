@@ -9,7 +9,7 @@ export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate,
-    PauliNoiseBellGate
+    PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -260,9 +260,12 @@ function QuantumClifford.apply!(state::BellState, g::BellGate)
     return state
 end
 
+##############################
+# Noisy
+##############################
 
 """A wrapper for `BellGate` that implements Pauli noise in addition to the gate."""
-struct PauliNoiseBellGate <: BellOp
+struct PauliNoiseBellGate <: BellOp # TODO make it work with the QuantumClifford noise ops
     g::BellOp
     px::Float64
     py::Float64
@@ -271,7 +274,7 @@ end
 
 function QuantumClifford.apply!(state::BellState, g::PauliNoiseBellGate)
     apply!(state, g.g)
-    for i in (g.g.idx1, g.g.idx2)
+    for i in (g.g.idx1, g.g.idx2) # TODO repetition with ...NoisyReset
         r = rand()
         if r<g.px
             apply!(state, BellPauliPermutation(1, i))
@@ -284,6 +287,45 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseBellGate)
     return state
 end
 
+"""A wrapper for `BellGate` that implements measurement noise."""
+struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
+    m::BellMeasure
+    p::Float64
+end
+
+"""A wrapper for `BellGate` that implements measurement noise and Pauli noise after the reset."""
+struct NoisyBellMeasureNoisyReset <: BellOp # TODO make it work with the QuantumClifford noise ops
+    m::BellMeasure
+    p::Float64
+    px::Float64
+    py::Float64
+    pz::Float64
+end
+
+# TODO remove Experimental.NoisyCircuits namespacing when possible
+function QuantumClifford.Experimental.NoisyCircuits.applywstatus!(state::BellState, op::NoisyBellMeasure)
+    state, result = bellmeasure!(state, op.m)
+    state, result⊻(rand()<op.p) ? QuantumClifford.Experimental.NoisyCircuits.continue_stat : QuantumClifford.Experimental.NoisyCircuits.failure_stat
+end
+
+# TODO remove Experimental.NoisyCircuits namespacing when possible
+function QuantumClifford.Experimental.NoisyCircuits.applywstatus!(state::BellState, op::NoisyBellMeasureNoisyReset)
+    state, result = bellmeasure!(state, op.m)
+    i = op.m.sidx # TODO repetition with PauliNoise...
+    r = rand()
+    if r<g.px
+        apply!(state, BellPauliPermutation(1, i))
+    elseif r<g.px+g.pz
+        apply!(state, BellPauliPermutation(2, i))
+    elseif r<g.px+g.pz+g.py
+        apply!(state, BellPauliPermutation(3, i))
+    end
+    state, result⊻(rand()<op.p) ? QuantumClifford.Experimental.NoisyCircuits.continue_stat : QuantumClifford.Experimental.NoisyCircuits.failure_stat
+end
+
+##############################
+# Random
+##############################
 
 """
 Initialize a random Bell diagonal state.
