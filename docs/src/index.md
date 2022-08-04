@@ -25,8 +25,12 @@ px0 = py0 = pz0 = 0.03
 noisy_random_measurements = [NoisyBellMeasureNoisyReset(m,p,px,py,pz) for m in random_measurements]
 all_ops = vcat(noisy_random_gates,noisy_random_measurements)
 random_circuit = all_ops[randperm(npairs)]
-mctrajectory!(copy(state), random_circuit)
+# using a typed array lets the compiler create better code in `mctrajectory!`
+random_circuit_typed = convert(Vector{Union{PauliNoiseBellGate,NoisyBellMeasureNoisyReset}}, random_circuit)
+initial_noise_circuit = [PauliNoise(i,px0,py0,pz0) for i in 1:10]
+new_state = copy(state)
+mctrajectory!(new_state, initial_noise_circuit)
+mctrajectory!(new_state, random_circuit_typed)
 # TODO initialization network noise
-# TODO measurement noise
 # TODO more restricted types of good gates
 ```

@@ -9,7 +9,7 @@ export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate,
-    PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
+    PauliNoise, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -283,6 +283,28 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseBellGate)
         elseif r<g.px+g.pz+g.py
             apply!(state, BellPauliPermutation(3, i))
         end
+    end
+    return state
+end
+
+"""A wrapper for `BellGate` that implements Pauli noise in addition to the gate."""
+struct PauliNoise <: BellOp # TODO make it work with the QuantumClifford noise ops
+    idx::Int
+    px::Float64
+    py::Float64
+    pz::Float64
+end
+
+function QuantumClifford.apply!(state::BellState, g::PauliNoise)
+    i = g.idx
+    # TODO repetition with ...NoisyReset and PauliNoise...
+    r = rand()
+    if r<g.px
+        apply!(state, BellPauliPermutation(1, i))
+    elseif r<g.px+g.pz
+        apply!(state, BellPauliPermutation(2, i))
+    elseif r<g.px+g.pz+g.py
+        apply!(state, BellPauliPermutation(3, i))
     end
     return state
 end
