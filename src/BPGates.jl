@@ -8,7 +8,8 @@ using Random
 export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
-    BellGate
+    BellGate,
+    PauliNoiseBellGate
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -303,7 +304,7 @@ end
 Initialize a random `BellMeasure` on Bell pair `i`.
 """
 function Random.rand(::Type{BellMeasure}, i::Int)
-    return BellGate(rand(1:3),i)
+    return BellMeasure(rand(1:3),i)
 end
 
 ##############################
