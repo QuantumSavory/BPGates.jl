@@ -56,6 +56,7 @@ end
 BellState(n::Integer) = BellState(BitVector(undef,2n))
 
 Base.copy(state::BellState) = BellState(copy(state.phases))
+Base.:(==)(l::BellState,r::BellState) = l.phases==r.phases
 
 abstract type BellOp <: QuantumClifford.AbstractCliffordOperator end
 
@@ -288,14 +289,14 @@ function QuantumClifford.apply!(state::BellState, g::CNOTPerm) # TODO abstract a
     phase = state.phases
     # first qubit permutation
     @inbounds phase_idx = bit_to_int(phase[g.idx1*2-1],phase[g.idx1*2])
-    @inbounds perm = pauli_perm_tuple[g.single1]
+    @inbounds perm = good_perm_tuple[g.single1]
     @inbounds permuted_idx = perm[phase_idx]
     bit1, bit2 = int_to_bit(permuted_idx,Val(2))
     @inbounds phase[g.idx1*2-1] = bit1
     @inbounds phase[g.idx1*2] = bit2
     # second qubit permutation
     @inbounds phase_idx = bit_to_int(phase[g.idx2*2-1],phase[g.idx2*2])
-    @inbounds perm = pauli_perm_tuple[g.single2]
+    @inbounds perm = good_perm_tuple[g.single2]
     @inbounds permuted_idx = perm[phase_idx]
     bit1, bit2 = int_to_bit(permuted_idx,Val(2))
     @inbounds phase[g.idx2*2-1] = bit1
