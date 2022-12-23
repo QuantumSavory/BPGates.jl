@@ -34,26 +34,47 @@ end
 A diagonal representation of Bell diagonal states that only tracks the phases in front of
 the stabilizers tableau instead of the whole stabilizer tableau.
 
-For example, `XX -ZZ` is represented as `01`.
+Capable of representing only tensor products of one or more of the states
+```
+±XX
+±ZZ
+```
+by tracking only the phases in the first column.
+For example, `XX -ZZ` is represented as the bitstring `01`.
+
+This representation permits drastically
+faster simulation of entanglement purification circuits.
 
 The `BellState(n)` constructor will create `n` Bell pairs.
 
 ```jldoctest
-julia> new_state = BellState([0,1,1,0])
+julia> bell_state = BellState([0,1,1,0])
 BellState(Bool[0, 1, 1, 0])
 
-julia> new_state.phases
-4-element BitVector:
- 0
- 1
- 1
- 0
+julia> Stabiliser(bell_state)
++ XX__
+- ZZ__
+- __XX
++ __ZZ
 ```
+
+As mentioned above, we can represent only Bell states. Here is the basis being used:
+
+| `BPGates` notation| Stabilizer tableaux | Kets | in X basis | in Y basis |
+|:---|:---|:---|:---|:---|
+|`00`|`+XX +ZZ`|`∣00⟩+∣11⟩`|`∣++⟩+∣--⟩`|`∣i₊i₋⟩+∣i₋i₊⟩`|
+|`01`|`+XX -ZZ`|`∣01⟩+∣10⟩`|`∣++⟩-∣--⟩`|`∣i₊i₊⟩-∣i₋i₋⟩`|
+|`10`|`-XX +ZZ`|`∣00⟩-∣11⟩`|`∣+-⟩+∣-+⟩`|`∣i₊i₊⟩+∣i₋i₋⟩`|
+|`11`|`-XX -ZZ`|`∣01⟩-∣10⟩`|`∣+-⟩-∣-+⟩`|`∣i₊i₋⟩-∣i₋i₊⟩`|
+
+You can convert between these descriptions using
+- `BPGates` to stabilizer state with `QuantumClifford.Stabilizer(bpgates_state)`
+- stabilizer state to ket with `QSymbolics.stab_to_ket`
 """
-struct BellState
+struct BellState <: QuantumClifford.AbstractStabilizer
     phases::BitVector
 end
-BellState(n::Integer) = BellState(BitVector(undef,2n))
+BellState(n::Integer) = BellState(BitVector(falses(2n)))
 
 Base.copy(state::BellState) = BellState(copy(state.phases))
 Base.:(==)(l::BellState,r::BellState) = l.phases==r.phases
@@ -61,70 +82,121 @@ Base.:(==)(l::BellState,r::BellState) = l.phases==r.phases
 abstract type BellOp <: QuantumClifford.AbstractCliffordOperator end
 
 """
-One type of Bell preserving gates that only performs a Pauli permutation on one side
-(in this case, we apply the Pauli gates to Alice's side of the Bell pairs) of the shared
-Bell pairs.
+Bell preserving gate performing one of 4 possible "Pauli permutations" on a single Bell pair.
 
-`pidx` can take value of 1-4 representating one of the four Pauli permutations available.
-`sidx` is an index that indicates which Bell pair the Pauli permutation will be
-applied to.
+Equivalent to applying a Pauli gate to Alice's side of the Bell pair.
+
+The first argument, `pidx`, specifies the permutation (between 1 and 4).
+The second argument, `sidx` indicates which Bell pair is acted on.
 
 ```jldoctest
-julia> BellPauliPermutation(2,3)
-BellPauliPermutation(2, 3)
+julia> BellPauliPermutation(1,1)*BellState(1) |> Stabilizer
++ XX
++ ZZ
+
+julia> BellPauliPermutation(2,1)*BellState(1) |> Stabilizer
++ XX
+- ZZ
+
+julia> BellPauliPermutation(3,1)*BellState(1) |> Stabilizer
+- XX
++ ZZ
+
+julia> BellPauliPermutation(4,1)*BellState(1) |> Stabilizer
+- XX
+- ZZ
 ```
 """
 struct BellPauliPermutation <: BellOp
     pidx::Int
     sidx::Int
+    function BellPauliPermutation(p,s)
+        1 <= p <= 4 || throw(ArgumentError("The permutation index needs to be between 1 and 4"))
+        s>0 || throw(ArgumentError("The Bell pair indices have to be positive integers."))
+        new(p,s)
+    end
 end
 
 """
-One type of Bell preserving gates that only performs a single permutation.
-`pidx` can take value of 1-6 representating one of the six single qubit permutation
-(which is a subset of Clifford gates on 1 qubit).
-`sidx` is an integer of which Bell state the permutation will be applied to.
-Both Alice and Bob will apply the same one qubit Clifford gates.
+Bell preserving gate performing one of 6 possible "Clifford phaseless permutations" on a single Bell pair.
+
+Equivalent to applying certain single-qubit Clifford gates to both Alice and Bob.
+
+The first argument, `pidx`, specifies the permutation (between 1 and 6).
+The second argument, `sidx` indicates which Bell pair is acted on.
 """
 struct BellSinglePermutation <: BellOp
     pidx::Int
     sidx::Int
+    function BellSinglePermutation(p,s)
+        1 <= p <= 6 || throw(ArgumentError("The permutation index needs to be between 1 and 6"))
+        s>0 || throw(ArgumentError("The Bell pair indices have to be positive integers."))
+        new(p,s)
+    end
 end
 
 """
-One type of Bell preserving gates that only performs a double permutation.
-`pidx` can take value of 1-20 representating one of the six double qubit permutation
-(which is a subset of Clifford gates on 2 qubit).
-`sidx` is an integer of which pair of Bell states the permutation will be applied to.
-Both Alice and Bob will apply the same two qubit Clifford gates.
+Bell preserving gate performing one of 20 possible "Clifford phaseless two-pair permutations" on a two Bell pairs.
+
+Equivalent to applying the same two-qubit Clifford gate to both Alice's and Bob's half-pairs.
+
+The first argument, `pidx`, specifies the permutation (between 1 and 20).
+The second argument, `sidx` indicates which Bell pairs are acted on.
 """
 struct BellDoublePermutation <: BellOp
     pidx::Int
     sidx::Tuple{Int,Int}
+    function BellDoublePermutation(p,s)
+        1 <= p <= 20 || throw(ArgumentError("The permutation index needs to be between 1 and 20"))
+        (s[1]>0 && s[2]>0) || throw(ArgumentError("The Bell pair indices have to be positive integers."))
+        new(p,s)
+    end
 end
 
 """
-Coincidence measurement to detect errors.
-`midx` can take value of 1-3 representing measurement performed in x, y, z basis respectively.
-`sidx` is an integer of which Bell state the measurement is applied to.
+Coincidence measurement on Bell pairs.
+
+The first argument, `midx`, spefies the X, Y, Z basis respectively.
+The second argument, `sidx`, indicates which Bell pair is being measured.
+
 The state will be reset to `00` after being applied measurement.
 """
 struct BellMeasure <: QuantumClifford.AbstractMeasurement
     midx::Int
     sidx::Int
+    function BellMeasure(p,s)
+        1 <= p <= 3 || throw(ArgumentError("The basis measurement index needs to be between 1 and 3"))
+        new(p,s)
+    end
+end
+
+function Base.:(*)(op::BellOp, s::BellState; phases::Bool=true)
+    s = copy(s)
+    apply!(s,op)
 end
 
 ##############################
 # Permutations
 ##############################
 
+"""The permutations realized by [`BellSinglePermutation`](@ref)."""
 const one_perm_tuple = (
-    (1, 2, 3, 4),
-    (1, 3, 2, 4),
+    (1, 2, 3, 4), # good 1
+    (1, 3, 2, 4), # good 3
     (3, 1, 2, 4),
     (3, 2, 1, 4),
     (2, 3, 1, 4),
     (2, 1, 3, 4)
+)
+
+"""The permutations realized by [`BellSinglePermutation`](@ref) as Clifford operations."""
+const one_perm_qc = ( # TODO switch to symbolic gates
+    C"X Z",
+    C"Z X",
+    C"Y X",
+    C"X Y",
+    C"Z Y",
+    C"Y Z"
 )
 
 function QuantumClifford.apply!(state::BellState, op::BellSinglePermutation) # TODO abstract away the permutation application as it is used by other gates too
@@ -138,12 +210,16 @@ function QuantumClifford.apply!(state::BellState, op::BellSinglePermutation) # T
     return state
 end
 
+"""The permutations realized by [`BellPauliPermutation`](@ref)."""
 const pauli_perm_tuple = (
     (1, 2, 3, 4),
     (3, 4, 1, 2), ## X flip
     (2, 1, 4, 3), ## Z flip
     (4, 3, 2, 1)  ## Y flip
 )
+
+"""The permutations realized by [`BellPauliPermutation`](@ref) as Pauli operations."""
+const pauli_perm_qc = (P"I",P"X",P"Z",P"Y") # TODO switch to symbolic gates
 
 function QuantumClifford.apply!(state::BellState, op::BellPauliPermutation) # TODO abstract away the permutation application as it is used by other gates too
     phase = state.phases
@@ -156,10 +232,11 @@ function QuantumClifford.apply!(state::BellState, op::BellPauliPermutation) # TO
     return state
 end
 
+"""The permutations realized by [`BellDoublePermutation`](@ref)."""
 const double_perm_tuple = (
     (1, 2, 3, 4, 9, 10, 11, 12, 5, 6, 7, 8, 13, 14, 15, 16),
     (1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15, 4, 8, 12, 16),
-    (1, 2, 11, 12, 6, 5, 16, 15, 9, 10, 3, 4, 14, 13, 8, 7),
+    (1, 2, 11, 12, 6, 5, 16, 15, 9, 10, 3, 4, 14, 13, 8, 7), # bilateral CNOT
     (1, 3, 10, 12, 7, 5, 16, 14, 9, 11, 2, 4, 15, 13, 8, 6),
     (1, 9, 7, 15, 10, 2, 16, 8, 3, 11, 5, 13, 12, 4, 14, 6),
     (1, 3, 6, 8, 5, 7, 2, 4, 11, 9, 16, 14, 15, 13, 12, 10),
@@ -177,6 +254,30 @@ const double_perm_tuple = (
     (9, 10, 7, 8, 2, 1, 16, 15, 5, 6, 11, 12, 14, 13, 4, 3),
     (9, 7, 6, 12, 5, 11, 10, 8, 16, 2, 3, 13, 4, 14, 15, 1),
     (10, 6, 3, 15, 5, 9, 16, 4, 11, 7, 2, 14, 8, 12, 13, 1)
+)
+
+"""The permutations realized by [`BellDoublePermutation`](@ref) as Clifford operations."""
+const two_perm_qc = ( # TODO switch to symbolic gates
+    C"X_ _Z Z_ _X",
+    C"_X X_ _Z Z_",
+    C"XX _X Z_ ZZ",
+    C"ZX _X X_ XZ",
+    C"XZ X_ _X ZX",
+    C"ZZ XX X_ _Z",
+    C"ZY XX X_ _Y",
+    C"XX _X ZX YY",
+    C"_Z X_ XX ZZ",
+    C"XZ X_ XX YY",
+    C"ZZ XX _X Z_",
+    C"YZ XX _X Y_",
+    C"Z_ ZX XZ _Z",
+    C"Y_ YX XZ _Z",
+    C"ZX Z_ _Z XZ",
+    C"YX Y_ _Z XZ",
+    C"_Y XY ZX Z_",
+    C"XY _Y Z_ ZX",
+    C"ZY YZ XY _Y",
+    C"YX Y_ _Y ZY"
 )
 
 function QuantumClifford.apply!(state::BellState, op::BellDoublePermutation) # TODO abstract away the permutation application as it is used by other gates too
@@ -204,8 +305,10 @@ const measure_tuple = (
 )
 
 """
-Apply coincidence measurement on a bell state.
-Return state, false if an error is detected
+Apply coincidence measurement on a Bell state.
+
+Return state and measurement result (`false` if an error is detected).
+
 The measured state will be reset to 00.
 
 ```jldoctest
@@ -249,6 +352,14 @@ struct BellGate <: BellOp
     single2::Int
     idx1::Int
     idx2::Int
+    function BellGate(p1,p2,d,s1,s2,i1,i2)
+        (1 <= p1 <= 4 && 1 <= p2 <= 4) || throw(ArgumentError("The Pauli permutation index needs to be between 1 and 4."))
+        (1 <= s1 <= 6 && 1 <= s2 <= 6) || throw(ArgumentError("The single-qubit Clifford permutation index needs to be between 1 and 6."))
+        (1 <= d <= 20) || throw(ArgumentError("The double-pair Clifford permutation index needs to be between 1 and 20."))
+        (i1 > 0 && i2 > 0) || throw(ArgumentError("The Bell pair indices have to be positive integers."))
+        i1 != i2 || throw(ArgumentError("The gate has to act on two different Bell pairs, i.e. idx1!=idx2."))
+        new(p1,p2,d,s1,s2,i1,i2)
+    end
 end
 
 function QuantumClifford.apply!(state::BellState, g::BellGate)
@@ -264,22 +375,27 @@ end
 # Typically good operations
 ##############################
 
-# TODO a conversion between this and BellOp gates
-"""A bilateral CNOT preceeded by some BCD permutation."""
+"""A bilateral CNOT preceeded by permutations on each of the pairs that map the `00` state to itself."""
 struct CNOTPerm <: BellOp
     single1::Int
     single2::Int
     idx1::Int
     idx2::Int
+    function CNOTPerm(s1,s2,i1,i2)
+        (1 <= s1 <= 6 && 1 <= s2 <= 6) || throw(ArgumentError("The permutation index needs to be between 1 and 6."))
+        (i1 > 0 && i2 > 0) || throw(ArgumentError("The Bell pair indices have to be positive integers."))
+        i1 != i2 || throw(ArgumentError("The gate has to act on two different Bell pairs, i.e. idx1!=idx2."))
+        new(s1,s2,i1,i2)
+    end
 end
 
 const good_perm_tuple = (
-    (1, 2, 3, 4),
-    (1, 2, 4, 3),
-    (1, 3, 2, 4),
-    (1, 3, 4, 2),
-    (1, 4, 2, 3),
-    (1, 4, 3, 2),
+    (1, 2, 3, 4), # perm 1
+    (1, 2, 4, 3), #
+    (1, 3, 2, 4), # perm 2
+    (1, 3, 4, 2), #
+    (1, 4, 2, 3), #
+    (1, 4, 3, 2), #
 )
 
 const cnot_perm = (1, 2, 11, 12, 6, 5, 16, 15, 9, 10, 3, 4, 14, 13, 8, 7)
@@ -331,7 +447,19 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseBellGate)
     return state
 end
 
-"""Pauli noise on qubit `idx`."""
+"""`PauliNoiseOp(idx,px,py,pz)` causes qubit-pair `idx` to flip to one of the other 3 Bell states with probabilities `px`, `py`, `pz` respectively.
+
+```jldoctest
+julia> apply!(BellState([0,0]), PauliNoiseOp(1,1,0,0))
+BellState(Bool[0, 1])
+
+julia> apply!(BellState([0,0]), PauliNoiseOp(1,0,1,0))
+BellState(Bool[1, 1])
+
+julia> apply!(BellState([0,0]), PauliNoiseOp(1,0,0,1))
+BellState(Bool[1, 0])
+```
+"""
 struct PauliNoiseOp <: BellOp # TODO make it work with the QuantumClifford noise ops
     idx::Int
     px::Float64
@@ -353,13 +481,13 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     return state
 end
 
-"""A wrapper for `BellGate` that implements measurement noise."""
+"""A wrapper for [`BellMeasure`](@ref) that implements measurement noise."""
 struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
     m::BellMeasure
     p::Float64
 end
 
-"""A wrapper for `BellGate` that implements measurement noise and Pauli noise after the reset."""
+"""A wrapper for [`BellMeasure`](@ref) that implements measurement noise and Pauli noise after the reset."""
 struct NoisyBellMeasureNoisyReset <: BellOp # TODO make it work with the QuantumClifford noise ops
     m::BellMeasure
     p::Float64
@@ -421,40 +549,6 @@ end
 
 stab2qidx(stab)=isone.(stab.phases.÷0x2)
 
-const one_perm_qc = ( # TODO switch to symbolic gates
-    C"X Z",
-    C"Z X",
-    C"Y X",
-    C"X Y",
-    C"Z Y",
-    C"Y Z"
-)
-
-const two_perm_qc = ( # TODO switch to symbolic gates
-    C"X_ _Z Z_ _X",
-    C"_X X_ _Z Z_",
-    C"XX _X Z_ ZZ",
-    C"ZX _X X_ XZ",
-    C"XZ X_ _X ZX",
-    C"ZZ XX X_ _Z",
-    C"ZY XX X_ _Y",
-    C"XX _X ZX YY",
-    C"_Z X_ XX ZZ",
-    C"XZ X_ XX YY",
-    C"ZZ XX _X Z_",
-    C"YZ XX _X Y_",
-    C"Z_ ZX XZ _Z",
-    C"Y_ YX XZ _Z",
-    C"ZX Z_ _Z XZ",
-    C"YX Y_ _Z XZ",
-    C"_Y XY ZX Z_",
-    C"XY _Y Z_ ZX",
-    C"ZY YZ XY _Y",
-    C"YX Y_ _Y ZY"
-)
-
-const pauli_perm_qc = (P"I",P"X",P"Z",P"Y") # TODO switch to symbolic gates
-
 """
 Convert a Bell perserving gate from `BPGates.jl` representation to the corresponding
 Clifford gate from `QuantumClifford.jl`.
@@ -504,7 +598,7 @@ end
 
 function QuantumClifford.Stabilizer(state::BellState)
     res = bell(length(state.phases)÷2)
-    res.phases .= state.phases .* 0x2
+    tab(res).phases .= state.phases .* 0x2
     return res
 end
 
