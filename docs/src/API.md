@@ -13,11 +13,36 @@
 
 Use [`BellState`](@ref) to represent a tensor product of Bell states.
 
+We can represent only Bell states. Here is the basis being used:
+
+| `BPGates` notation| Stabilizer tableaux | Kets | in X basis | in Y basis |
+|:---|:---|:---|:---|:---|
+|`00`|`+XX +ZZ`|`∣00⟩+∣11⟩`|`∣++⟩+∣--⟩`|`∣i₊i₋⟩+∣i₋i₊⟩`|
+|`01`|`+XX -ZZ`|`∣01⟩+∣10⟩`|`∣++⟩-∣--⟩`|`∣i₊i₊⟩-∣i₋i₋⟩`|
+|`10`|`-XX +ZZ`|`∣00⟩-∣11⟩`|`∣+-⟩+∣-+⟩`|`∣i₊i₊⟩+∣i₋i₋⟩`|
+|`11`|`-XX -ZZ`|`∣01⟩-∣10⟩`|`∣+-⟩-∣-+⟩`|`∣i₊i₋⟩-∣i₋i₊⟩`|
+
+You can convert between these descriptions using
+- `BPGates` to stabilizer state with `QuantumClifford.Stabilizer(bpgates_state)`
+- stabilizer state to ket with `QSymbolics.stab_to_ket`
+
 ## Operations
 
-The gate you will need is [`BellGate`](@ref) which provides the most general Bell-preserving gate. It is built out of smaller gates.
+Most often you would only need [`CNOTPerm`](@ref) as an operation type. There is a [documentation section dedicated to it](@ref cnotlike-gates). It is of the following form:
 
-For measurements use [`BellMeasure`](@ref) which provides coincidence measurements.
+```@raw html
+<img style="width:50%" src="../a_good_bp_gate.png">
+```
+
+The most general gate is [`BellGate`](@ref). It is built out of smaller gates. It is of the following form:
+
+```@raw html
+<img style="width:50%" src="../general_bp_gate.png">
+```
+
+For measurements use [`BellMeasure`](@ref) which provides coincidence measurements as described in [their section of the documentation](@ref measurements).
+
+For noisy operations you can use TODO.
 
 The `QuantumClifford.apply!` function and company (e.g. `mctrajectory`) can be used for these operations.
 

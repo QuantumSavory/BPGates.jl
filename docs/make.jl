@@ -18,6 +18,9 @@ modules = [BPGates],
 authors = "Shu Ge, Stefan Krastanov",
 pages = [
 "BPGates.jl" => "index.md",
+"Most Common Gates" => "most_common.md",
+"Coincidence Measurements" => "measurements.md",
+"Noisy Gates" => "noisy.md",
 "API" => "API.md",
 ]
 )
