@@ -1,18 +1,10 @@
 using JET
-using ArrayInterface
-using Static
+using Test
 
-function test_jet()
-    @testset "JET checks" begin
-        rep = report_package("BPGates";
-            ignored_modules=(
-                AnyFrameModule(ArrayInterface),
-                AnyFrameModule(Static),
-            )
-        )
-        @show rep
-        @test length(JET.get_reports(rep)) == 0
-    end
-end
-
-test_jet()
+rep = report_package("BPGates";
+    ignored_modules=(
+        LastFrameModule(Base),
+    )
+)
+@show rep
+@test length(JET.get_reports(rep)) == 0
