@@ -19,7 +19,7 @@ The simulator is capable of representing only tensor products of one or more of 
 ±ZZ
 ```
 by tracking only the phases in the first column.
-For example, `+XX -ZZ` is represented as the bitstring `01`. Gates are internally represented as permutations of the Bell basis (i.e. single-qubit games are permutations of the four binary numbers `00`, `01`, `10`, `11`).
+For example, `+XX -ZZ` is represented as the bitstring `01`. Gates are internally represented as permutations of the Bell basis (i.e. single-qubit gates are permutations of the four binary numbers `00`, `01`, `10`, `11`).
 
 The `00` state, i.e. the state stabilized by `+XX +ZZ`, is considered somewhat special in some simulations, as the "desired state". If your goals are different, just assume an implicit basis change.
 
@@ -65,4 +65,43 @@ All of these methods would require a Monte Carlo Quantum Trajectories simulation
 
 ## Short Example
 
-TODO
+You can initialize a Bell State by specifing the phases and convert it to stabilizer representation.
+```
+julia> bell_state = BellState([0,1,1,0])
+BellState(Bool[0, 1, 1, 0])
+
+julia> Stabilizer(bell_state)
++ XX__
+- ZZ__
+- __XX
++ __ZZ
+```
+
+You can apply a Pauli Permutation (similarly for single pair permutations or double pair permutations).
+```
+julia> BellPauliPermutation(1,1)*BellState(1) |> Stabilizer
++ XX
++ ZZ
+```
+You can apply a full BP Gate which is the most general representation of a Bell preserving gate on two Bell pairs.
+The general gate consists of a two Pauli permutations on qubits of one Bell pair, a double pair permutation and
+two single pair permutations.
+```
+julia> apply!(BellState([0,1,1,0]), BellGate(1,2,10,5,6,1,2))
+BellState(Bool[0, 0, 0, 0])
+```
+
+You can apply a coincidence measurement on the bell states, which will be reset after measurement.
+```
+julia> bellmeasure!(BellState([0,1,1,1]), BellMeasure(2,1))
+(BellState(Bool[0, 0, 1, 1]), false)
+```
+
+You can also apply noisy permutations and measurements.
+```
+julia> apply!(BellState([0,0]), PauliNoiseOp(1,1,0,0))
+BellState(Bool[0, 1])
+
+julia> apply!(BellState([0,1,1,1]), NoisyBellMeasure(2,1))
+(BellState(Bool[0, 0, 1, 1]), false)
+```
