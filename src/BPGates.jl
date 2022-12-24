@@ -51,7 +51,7 @@ The `BellState(n)` constructor will create `n` Bell pairs.
 julia> bell_state = BellState([0,1,1,0])
 BellState(Bool[0, 1, 1, 0])
 
-julia> Stabiliser(bell_state)
+julia> Stabilizer(bell_state)
 + XX__
 - ZZ__
 - __XX
@@ -145,11 +145,12 @@ The second argument, `sidx` indicates which Bell pairs are acted on.
 """
 struct BellDoublePermutation <: BellOp
     pidx::Int
-    sidx::Tuple{Int,Int}
-    function BellDoublePermutation(p,s)
+    sidx1::Int
+    sidx2::Int
+    function BellDoublePermutation(p,s1,s2)
         1 <= p <= 20 || throw(ArgumentError("The permutation index needs to be between 1 and 20"))
-        (s[1]>0 && s[2]>0) || throw(ArgumentError("The Bell pair indices have to be positive integers."))
-        new(p,s)
+        (s1>0 && s2>0) || throw(ArgumentError("The Bell pair indices have to be positive integers."))
+        new(p,s1,s2)
     end
 end
 
@@ -219,7 +220,7 @@ const pauli_perm_tuple = (
 )
 
 """The permutations realized by [`BellPauliPermutation`](@ref) as Pauli operations."""
-const pauli_perm_qc = (P"I",P"X",P"Z",P"Y") # TODO switch to symbolic gates
+const pauli_perm_qc = (sId1,sX,sZ,sY)
 
 function QuantumClifford.apply!(state::BellState, op::BellPauliPermutation) # TODO abstract away the permutation application as it is used by other gates too
     phase = state.phases
@@ -282,14 +283,14 @@ const two_perm_qc = ( # TODO switch to symbolic gates
 
 function QuantumClifford.apply!(state::BellState, op::BellDoublePermutation) # TODO abstract away the permutation application as it is used by other gates too
     phase = state.phases
-    @inbounds phase_idx = bit_to_int(phase[op.sidx[1]*2-1],phase[op.sidx[1]*2],phase[op.sidx[2]*2-1], phase[op.sidx[2]*2])
+    @inbounds phase_idx = bit_to_int(phase[op.sidx1*2-1],phase[op.sidx1*2],phase[op.sidx2*2-1], phase[op.sidx2*2])
     @inbounds perm = double_perm_tuple[op.pidx]
     @inbounds permuted_idx = perm[phase_idx]
     changed_phases = int_to_bit(permuted_idx, Val(4))
-    @inbounds phase[op.sidx[1]*2-1] = changed_phases[1]
-    @inbounds phase[op.sidx[1]*2] = changed_phases[2]
-    @inbounds phase[op.sidx[2]*2-1] = changed_phases[3]
-    @inbounds phase[op.sidx[2]*2] = changed_phases[4]
+    @inbounds phase[op.sidx1*2-1] = changed_phases[1]
+    @inbounds phase[op.sidx1*2] = changed_phases[2]
+    @inbounds phase[op.sidx2*2-1] = changed_phases[3]
+    @inbounds phase[op.sidx2*2] = changed_phases[4]
     return state
 end
 
@@ -338,11 +339,6 @@ Most general representation of a Bell preserving gate on two qubits.
 The general gate consists of a two Pauli permutations, a double qubit permutation,
 two single qubit permutations, and two indices indicating which pair of Bell states the
 general Bell preserving gate will be applied to.
-
-```jldoctest
-julia> BellGate(3,2,15,2,1,4,5)
-BellGate(3, 15, 2, 1, 4, 5)
-```
 """
 struct BellGate <: BellOp
     pauli1::Int
@@ -365,7 +361,7 @@ end
 function QuantumClifford.apply!(state::BellState, g::BellGate)
     apply!(state, BellPauliPermutation(g.pauli1,g.idx1))
     apply!(state, BellPauliPermutation(g.pauli2,g.idx2))
-    apply!(state, BellDoublePermutation(g.double,(g.idx1,g.idx2)))
+    apply!(state, BellDoublePermutation(g.double,g.idx1,g.idx2))
     apply!(state, BellSinglePermutation(g.single1,g.idx1))
     apply!(state, BellSinglePermutation(g.single2,g.idx2))
     return state
@@ -515,7 +511,7 @@ end
 ##############################
 
 """
-Initialize a random Bell diagonal state.
+Random Bell diagonal state.
 Input is the number of shared Bell pairs in the entanglement network.
 """
 function Random.rand(::Type{BellState}, num_bell::Int)
@@ -523,21 +519,42 @@ function Random.rand(::Type{BellState}, num_bell::Int)
 end
 
 """
-Initialize a random `BellGate` on Bell pairs `i` and `j`.
+Random [`BellGate`](@ref) on Bell pairs `i` and `j`.
 """
 function Random.rand(::Type{BellGate}, i::Int,j::Int)
     return BellGate(rand(1:4),rand(1:4),rand(1:20),rand(1:6),rand(1:6),i,j)
 end
 
 """
-Initialize a random `CNOTPerm` on Bell pairs `i` and `j`.
+Random [`CNOTPerm`](@ref) on Bell pairs `i` and `j`.
 """
 function Random.rand(::Type{CNOTPerm}, i::Int,j::Int)
     return CNOTPerm(rand(1:6),rand(1:6),i,j)
 end
 
 """
-Initialize a random `BellMeasure` on Bell pair `i`.
+Random [`BellDoublePermutation`](@ref) on Bell pairs `i` and `j`.
+"""
+function Random.rand(::Type{BellDoublePermutation}, i::Int,j::Int)
+    return BellDoublePermutation(rand(1:20),i,j)
+end
+
+"""
+Random [`BellPauliPermutation`](@ref) on Bell pair `i`.
+"""
+function Random.rand(::Type{BellPauliPermutation}, i::Int)
+    return BellPauliPermutation(rand(1:4),i)
+end
+
+"""
+Random [`BellSinglePermutation`](@ref) on Bell pair `i`.
+"""
+function Random.rand(::Type{BellSinglePermutation}, i::Int)
+    return BellSinglePermutation(rand(1:6),i)
+end
+
+"""
+Initialize a random [`BellMeasure`](@ref) on Bell pair `i`.
 """
 function Random.rand(::Type{BellMeasure}, i::Int)
     return BellMeasure(rand(1:3),i)
@@ -547,52 +564,37 @@ end
 # Convertion from BP to QC
 ##############################
 
-stab2qidx(stab)=isone.(stab.phases.÷0x2)
-
 """
-Convert a Bell perserving gate from `BPGates.jl` representation to the corresponding
-Clifford gate from `QuantumClifford.jl`.
-
-```jldoctest
-julia> convert2QC(BellSinglePermutation(2,3))
-2-element Vector{Tuple{CliffordOperator{Vector{UInt8}, Matrix{UInt64}}, Vector{Int64}}}:
- (X ⟼ + Z
-Z ⟼ + X
-, [5])
- (X ⟼ + Z
-Z ⟼ + X
-, [6])
-```
+Convert a Bell perserving gate from `BPGates` representation to a sequence of Clifford gate from `QuantumClifford`.
 """
-function convert2QC end # TODO polish the API and export, include one for BellMeasure too
-# TODO implement convert2QC for CNOTPerm
+function toQCcircuit end
 
-function convert2QC(gate::BellSinglePermutation)
+function toQCcircuit(gate::BellSinglePermutation)
     return [
-        (one_perm_qc[gate.pidx], (gate.sidx*2-1,)),
-        (one_perm_qc[gate.pidx], (gate.sidx*2,))
+        SparseGate(one_perm_qc[gate.pidx], (gate.sidx*2-1,)),
+        SparseGate(one_perm_qc[gate.pidx], (gate.sidx*2,))
     ]
 end
-function convert2QC(gate::BellDoublePermutation)
+function toQCcircuit(gate::BellDoublePermutation)
     return [
-        (two_perm_qc[gate.pidx], (gate.sidx[1]*2-1, gate.sidx[2]*2-1)),
-        (two_perm_qc[gate.pidx], (gate.sidx[1]*2, gate.sidx[2]*2))
+        SparseGate(two_perm_qc[gate.pidx], (gate.sidx1*2-1, gate.sidx2*2-1)),
+        SparseGate(two_perm_qc[gate.pidx], (gate.sidx1*2, gate.sidx2*2))
     ]
 end
-function convert2QC(gate::BellPauliPermutation)
-    return [(pauli_perm_qc[gate.pidx], (gate.sidx[1]*2-1,))]
+function toQCcircuit(gate::BellPauliPermutation)
+    return [pauli_perm_qc[gate.pidx](gate.sidx[1]*2-1)]
 end
 
-function convert2QC(gate::BellGate)
+function toQCcircuit(gate::BellGate)
     return [
-        (pauli_perm_qc[gate.pauli1], (gate.idx1*2-1,)),
-        (pauli_perm_qc[gate.pauli2], (gate.idx2*2-1,)),
-        (two_perm_qc[gate.double], (gate.idx1*2-1, gate.idx2*2-1)),
-        (two_perm_qc[gate.double], (gate.idx1*2, gate.idx2*2)),
-        (one_perm_qc[gate.single1], (gate.idx1*2-1,)),
-        (one_perm_qc[gate.single1], (gate.idx1*2,)),
-        (one_perm_qc[gate.single2], (gate.idx2*2-1,)),
-        (one_perm_qc[gate.single2], (gate.idx2*2,)),
+        pauli_perm_qc[gate.pauli1](gate.idx1*2-1),
+        pauli_perm_qc[gate.pauli2](gate.idx2*2-1),
+        SparseGate(two_perm_qc[gate.double], (gate.idx1*2-1, gate.idx2*2-1)),
+        SparseGate(two_perm_qc[gate.double], (gate.idx1*2, gate.idx2*2)),
+        SparseGate(one_perm_qc[gate.single1], (gate.idx1*2-1,)),
+        SparseGate(one_perm_qc[gate.single1], (gate.idx1*2,)),
+        SparseGate(one_perm_qc[gate.single2], (gate.idx2*2-1,)),
+        SparseGate(one_perm_qc[gate.single2], (gate.idx2*2,)),
     ]
 end
 
@@ -600,52 +602,6 @@ function QuantumClifford.Stabilizer(state::BellState)
     res = bell(length(state.phases)÷2)
     tab(res).phases .= state.phases .* 0x2
     return res
-end
-
-"""
-Take in BPGates.jl state and gate and apply the bell preserving gate on a bell diagonal state in terms of QuantumClifford.jl
-formalisms and return results in BPGates.jl formalism.
-
-julia> apply_as_qc!(BellState([0,1,1,0]), BellSinglePermutation(2,1))
-(BellState(Bool[1, 0, 1, 0]), true)
-
-julia> apply_as_qc!(BellState([0,1,1,0]), BellMeasure(2,1))
-(BellState(Bool[0, 0, 1, 0]), false)
-"""
-function apply_as_qc! end
-
-function apply_as_qc!(state::BellState, gate::BellOp)
-    s = convert2QC(state)
-    for (g, idx) in convert2QC(gate)
-        apply!(s, g, idx)
-    end
-    new_phases = [project!(s,proj)[end]÷2 for proj in bell(length(state.phases)÷2)]
-    state.phases .= new_phases
-    return state, true
-end
-
-function apply_as_qc!(state::BellState, gate::BellMeasure)
-    phases = state.phases[:]
-    s = MixedDestabilizer(Stabilizer(state))
-    if gate.midx == 1
-        res = (projectXrand!(s,gate.sidx*2-1)[2]==projectXrand!(s,gate.sidx*2)[2]) ? true : false
-    elseif gate.midx == 2
-        res = (projectYrand!(s,gate.sidx*2-1)[2]!=projectYrand!(s,gate.sidx*2)[2]) ? true : false
-    else
-        res = (projectZrand!(s,gate.sidx*2-1)[2]==projectZrand!(s,gate.sidx*2)[2]) ? true : false
-    end
-    phases[gate.sidx*2-1:gate.sidx*2] .=0
-    state.phases .= phases
-    return state, res
-end
-
-function apply_as_qc!(state::BellState, circuit)
-    for op in circuit
-        if apply_as_qc!(state,op)[end]==false
-            return state, false
-        end
-    end
-    return state, true
 end
 
 end # module
