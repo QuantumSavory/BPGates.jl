@@ -18,7 +18,7 @@ end
 for num_bell in test_sizes[2:end]
     num_gates = 10
 
-    state = BellState(num_bell)
+    state = rand(BellState,num_bell)
     circuit1 = [rand(BellGate,randperm(num_bell)[1:2]...) for _ in 1:num_gates]
     circuit2 = [rand(BellPauliPermutation,randperm(num_bell)[1:1]...) for _ in 1:num_gates]
     circuit3 = [rand(BellSinglePermutation,randperm(num_bell)[1:1]...) for _ in 1:num_gates]
@@ -26,17 +26,24 @@ for num_bell in test_sizes[2:end]
     # TODO implement CNOTPerm conversions
     circuit5 = []#[rand(CNOTPerm,randperm(num_bell)[1:2]...) for _ in 1:num_gates]
     circuit6 = [CNOTPerm(1,1,randperm(num_bell)[1:2]...) for _ in 1:num_gates]
-    # TODO implement BellMeasure conversions
-    circuit7 = []#[rand(BellMeasure,i) for i in 1:num_bell÷3]
-    circuit = [circuit1...;circuit2...;circuit3...;circuit4...;circuit5...;circuit6...;circuit7...;]
+    circuit = [circuit1...;circuit2...;circuit3...;circuit4...;circuit5...;circuit6...;]
     endstate, status = mctrajectory!(copy(state), circuit)
 
-    stabstate = Stabilizer(copy(state))
+    stabstate = MixedDestabilizer(copy(state))
     stabcircuit = [toQCcircuit.(circuit)...;]
     endstabstate, stabstatus = mctrajectory!(copy(stabstate), stabcircuit)
 
-    @test canonicalize!(endstabstate) == canonicalize!(Stabilizer(endstate))
     @test status == stabstatus
+    @test canonicalize!(copy(stabilizerview(endstabstate))) == canonicalize!(Stabilizer(endstate))
+
+    # Test measurements separately because resets to Bell states can get shortcircuited
+    meas = rand(BellMeasure,1)
+    meas_qc = [toQCcircuit(meas)...]
+    mstate, mstatus = mctrajectory!(endstate, [meas])
+    mstate_qc, mstatus_qc = mctrajectory!(endstabstate, meas_qc)
+    mstate_qc = apply!(mstate_qc, Reset(S"XX ZZ",[1,2]))
+    @test mstatus == mstatus_qc
+    @test canonicalize!(copy(stabilizerview(mstate_qc))) == canonicalize!(Stabilizer(mstate))
 end
 
 state = BellState(2)

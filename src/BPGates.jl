@@ -324,10 +324,9 @@ function bellmeasure!(state::BellState, op::BellMeasure) # TODO document which i
     return state, result
 end
 
-# TODO remove Experimental.NoisyCircuits namespacing when possible
-function QuantumClifford.Experimental.NoisyCircuits.applywstatus!(state::BellState, op::BellMeasure)
+function QuantumClifford.applywstatus!(state::BellState, op::BellMeasure)
     state, result = bellmeasure!(state, op)
-    state, result ? QuantumClifford.Experimental.NoisyCircuits.continue_stat : QuantumClifford.Experimental.NoisyCircuits.failure_stat
+    state, result ? continue_stat : failure_stat
 end
 
 ##############################
@@ -492,18 +491,16 @@ struct NoisyBellMeasureNoisyReset <: BellOp # TODO make it work with the Quantum
     pz::Float64
 end
 
-# TODO remove Experimental.NoisyCircuits namespacing when possible
-function QuantumClifford.Experimental.NoisyCircuits.applywstatus!(state::BellState, op::NoisyBellMeasure)
+function QuantumClifford.applywstatus!(state::BellState, op::NoisyBellMeasure)
     state, result = bellmeasure!(state, op.m)
-    state, result⊻(rand()<op.p) ? QuantumClifford.Experimental.NoisyCircuits.continue_stat : QuantumClifford.Experimental.NoisyCircuits.failure_stat
+    state, result⊻(rand()<op.p) ? continue_stat : failure_stat
 end
 
-# TODO remove Experimental.NoisyCircuits namespacing when possible
-function QuantumClifford.Experimental.NoisyCircuits.applywstatus!(state::BellState, op::NoisyBellMeasureNoisyReset)
+function QuantumClifford.applywstatus!(state::BellState, op::NoisyBellMeasureNoisyReset)
     state, result = bellmeasure!(state, op.m)
     cont = result⊻(rand()<op.p)
     cont && apply!(state, PauliNoiseOp(op.m.sidx,op.px,op.py,op.pz))
-    state, cont ? QuantumClifford.Experimental.NoisyCircuits.continue_stat : QuantumClifford.Experimental.NoisyCircuits.failure_stat
+    state, cont ? continue_stat : failure_stat
 end
 
 ##############################
@@ -566,6 +563,10 @@ end
 
 """
 Convert a Bell perserving gate from `BPGates` representation to a sequence of Clifford gate from `QuantumClifford`.
+
+Translating [`BellMeasure`](@ref) is not precise,
+because a real Bell measurement would destroy the Bell pair,
+which can not be represented in `BPGates.jl`.
 """
 function toQCcircuit end
 
@@ -598,10 +599,22 @@ function toQCcircuit(gate::BellGate)
     ]
 end
 
+function toQCcircuit(g::BellMeasure)
+    meas = (sMX, sMY, sMZ)[g.midx]
+    return [
+        BellMeasurement([meas(g.sidx*2-1),meas(g.sidx*2)], g.midx==2)
+        Reset(S"XX ZZ", [g.sidx*2-1,g.sidx*2])
+    ]
+end
+
 function QuantumClifford.Stabilizer(state::BellState)
     res = bell(length(state.phases)÷2)
     tab(res).phases .= state.phases .* 0x2
     return res
+end
+
+function QuantumClifford.MixedDestabilizer(state::BellState)
+    MixedDestabilizer(Stabilizer(state))
 end
 
 end # module
