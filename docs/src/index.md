@@ -51,7 +51,7 @@ As mentioned above, we can represent only Bell states. Here is the basis being u
 
 You can convert between these descriptions using
 - `BPGates` to stabilizer state with `QuantumClifford.Stabilizer(bpgates_state)`
-- stabilizer state to ket with `QSymbolics.stab_to_ket`
+- stabilizer state to ket with `QuantumSymbolics.stab_to_ket`
 
 ## Benchmarks
 
