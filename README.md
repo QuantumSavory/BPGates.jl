@@ -4,19 +4,19 @@
     <tr>
         <td>Documentation</td>
         <td>
-            <a href="https://krastanov.github.io/BPGates.jl/dev"><img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Documentation of dev version"></a>
+            <a href="https://quantumsavory.github.io/BPGates.jl/dev"><img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Documentation of dev version"></a>
         </td>
     </tr><tr></tr>
     <tr>
         <td>Continuous integration</td>
         <td>
-            <a href="https://github.com/Krastanov/BPGates.jl/actions?query=workflow%3ACI+branch%3Amaster"><img src="https://img.shields.io/github/actions/workflow/status/Krastanov/BPGates.jl/ci.yml?branch=main" alt="GitHub Workflow Status"></a>
+            <a href="https://github.com/QuantumSavory/BPGates.jl/actions?query=workflow%3ACI+branch%3Amaster"><img src="https://img.shields.io/github/actions/workflow/status/QuantumSavory/BPGates.jl/ci.yml?branch=main" alt="GitHub Workflow Status"></a>
         </td>
     </tr><tr></tr>
     <tr>
         <td>Code coverage</td>
         <td>
-            <a href="https://codecov.io/gh/Krastanov/BPGates.jl"><img src="https://img.shields.io/codecov/c/gh/Krastanov/BPGates.jl?label=codecov" alt="Test coverage from codecov"></a>
+            <a href="https://codecov.io/gh/QuantumSavory/BPGates.jl"><img src="https://img.shields.io/codecov/c/gh/QuantumSavory/BPGates.jl?label=codecov" alt="Test coverage from codecov"></a>
         </td>
     </tr><tr></tr>
     <tr>
@@ -28,4 +28,4 @@
     </tr>
 </table>
 
-Faster Bell-preserving gates for Clifford circuit simulators like [QuantumClifford.jl](https://github.com/Krastanov/QuantumClifford.jl).
+Faster Bell-preserving gates for Clifford circuit simulators like [QuantumClifford.jl](https://github.com/QuantumSavory/QuantumClifford.jl).

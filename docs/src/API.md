@@ -24,7 +24,7 @@ We can represent only Bell states. Here is the basis being used:
 
 You can convert between these descriptions using
 - `BPGates` to stabilizer state with `QuantumClifford.Stabilizer(bpgates_state)`
-- stabilizer state to ket with `QuantumSymbolics.stab_to_ket`
+- stabilizer state to state vector ket with `QuantumOptics.Ket`
 
 ## Operations
 

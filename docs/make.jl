@@ -26,5 +26,5 @@ pages = [
 )
 
 deploydocs(
-    repo = "github.com/Krastanov/BPGates.jl.git"
+    repo = "github.com/QuantumSavory/BPGates.jl.git"
 )
