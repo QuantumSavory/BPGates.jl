@@ -8,7 +8,7 @@ using Random
 export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
-    BellGate, CNOTPerm,
+    BellGate, CNOTPerm, GoodSingleQubitPerm,
     PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
 
 function int_to_bit(int,digits)
@@ -69,12 +69,13 @@ As mentioned above, we can represent only Bell states. Here is the basis being u
 
 You can convert between these descriptions using
 - `BPGates` to stabilizer state with `QuantumClifford.Stabilizer(bpgates_state)`
-- stabilizer state to ket with `QuantumClifford.stab_to_ket`
+- stabilizer state to ket with `QuantumOptics.Ket`
 """
 struct BellState <: QuantumClifford.AbstractStabilizer
     phases::BitVector
 end
 BellState(n::Integer) = BellState(BitVector(falses(2n)))
+BellState(t::Tuple) = BellState(BitVector(t))
 
 Base.copy(state::BellState) = BellState(copy(state.phases))
 Base.:(==)(l::BellState,r::BellState) = l.phases==r.phases
@@ -258,7 +259,7 @@ const double_perm_tuple = (
 )
 
 """The permutations realized by [`BellDoublePermutation`](@ref) as Clifford operations."""
-const two_perm_qc = ( # TODO switch to symbolic gates
+const double_perm_qc = ( # TODO switch to symbolic gates
     C"X_ _Z Z_ _X",
     C"_X X_ _Z Z_",
     C"XX _X Z_ ZZ",
@@ -384,6 +385,17 @@ struct CNOTPerm <: BellOp
     end
 end
 
+"""A single-qubit Clifford operation acting as a permutation that maps the `00` state to itself."""
+struct GoodSingleQubitPerm <: BellOp
+    single::Int
+    idx::Int
+    function GoodSingleQubitPerm(s,i)
+        (1 <= s <= 6) || throw(ArgumentError("The permutation index needs to be between 1 and 6."))
+        (i > 0) || throw(ArgumentError("The Bell pair index has to be a positive integer."))
+        new(s,i)
+    end
+end
+
 const good_perm_tuple = (
     (1, 2, 3, 4), # perm 1
     (1, 2, 4, 3), #
@@ -393,22 +405,37 @@ const good_perm_tuple = (
     (1, 4, 3, 2), #
 )
 
+const h = tHadamard
+const p = tPhase
+const hp = h*p
+const ph = p*h
+const good_perm_qc = ( # From the appendix of Optimized Entanglement Purification, but be careful with index notation being different
+    (tId1,tId1), # TODO switch to symbolic gates
+    (h*ph*ph,h*hp*hp*hp*hp),
+    (h,h),
+    (ph*ph,hp*hp*hp*hp),
+    (ph,hp*hp),
+    (h*ph,p*hp)
+)
+
 const cnot_perm = (1, 2, 11, 12, 6, 5, 16, 15, 9, 10, 3, 4, 14, 13, 8, 7)
 
 function QuantumClifford.apply!(state::BellState, g::CNOTPerm) # TODO abstract away the permutation application as it is used by other gates too
-    # TODO skip operation if state is 00
     phase = state.phases
+    @inbounds phase_idxa = bit_to_int(phase[g.idx1*2-1],phase[g.idx1*2])
+    @inbounds phase_idxb = bit_to_int(phase[g.idx2*2-1],phase[g.idx2*2])
+    if phase_idxa==phase_idxb==1
+        return state
+    end
     # first qubit permutation
-    @inbounds phase_idx = bit_to_int(phase[g.idx1*2-1],phase[g.idx1*2])
     @inbounds perm = good_perm_tuple[g.single1]
-    @inbounds permuted_idx = perm[phase_idx]
+    @inbounds permuted_idx = perm[phase_idxa]
     bit1, bit2 = int_to_bit(permuted_idx,Val(2))
     @inbounds phase[g.idx1*2-1] = bit1
     @inbounds phase[g.idx1*2] = bit2
     # second qubit permutation
-    @inbounds phase_idx = bit_to_int(phase[g.idx2*2-1],phase[g.idx2*2])
     @inbounds perm = good_perm_tuple[g.single2]
-    @inbounds permuted_idx = perm[phase_idx]
+    @inbounds permuted_idx = perm[phase_idxb]
     bit1, bit2 = int_to_bit(permuted_idx,Val(2))
     @inbounds phase[g.idx2*2-1] = bit1
     @inbounds phase[g.idx2*2] = bit2
@@ -420,6 +447,21 @@ function QuantumClifford.apply!(state::BellState, g::CNOTPerm) # TODO abstract a
     @inbounds phase[g.idx1*2] = changed_phases[2]
     @inbounds phase[g.idx2*2-1] = changed_phases[3]
     @inbounds phase[g.idx2*2] = changed_phases[4]
+    return state
+end
+
+function QuantumClifford.apply!(state::BellState, g::GoodSingleQubitPerm) # TODO abstract away the permutation application as it is used by other gates too
+    phase = state.phases
+    # first qubit permutation
+    @inbounds phase_idx = bit_to_int(phase[g.idx*2-1],phase[g.idx*2])
+    if phase_idx==1
+        return state
+    end
+    @inbounds perm = good_perm_tuple[g.single]
+    @inbounds permuted_idx = perm[phase_idx]
+    bit1, bit2 = int_to_bit(permuted_idx,Val(2))
+    @inbounds phase[g.idx*2-1] = bit1
+    @inbounds phase[g.idx*2] = bit2
     return state
 end
 
@@ -530,6 +572,13 @@ function Random.rand(::Type{CNOTPerm}, i::Int,j::Int)
 end
 
 """
+Random [`GoodSingleQubitPerm`](@ref) on Bell pair `i`.
+"""
+function Random.rand(::Type{GoodSingleQubitPerm}, i::Int)
+    return GoodSingleQubitPerm(rand(1:6),i)
+end
+
+"""
 Random [`BellDoublePermutation`](@ref) on Bell pairs `i` and `j`.
 """
 function Random.rand(::Type{BellDoublePermutation}, i::Int,j::Int)
@@ -558,7 +607,7 @@ function Random.rand(::Type{BellMeasure}, i::Int)
 end
 
 ##############################
-# Convertion from BP to QC
+# Conversion from BP to QC
 ##############################
 
 """
@@ -578,8 +627,8 @@ function toQCcircuit(gate::BellSinglePermutation)
 end
 function toQCcircuit(gate::BellDoublePermutation)
     return [
-        SparseGate(two_perm_qc[gate.pidx], (gate.sidx1*2-1, gate.sidx2*2-1)),
-        SparseGate(two_perm_qc[gate.pidx], (gate.sidx1*2, gate.sidx2*2))
+        SparseGate(double_perm_qc[gate.pidx], (gate.sidx1*2-1, gate.sidx2*2-1)),
+        SparseGate(double_perm_qc[gate.pidx], (gate.sidx1*2, gate.sidx2*2))
     ]
 end
 function toQCcircuit(gate::BellPauliPermutation)
@@ -590,12 +639,30 @@ function toQCcircuit(gate::BellGate)
     return [
         pauli_perm_qc[gate.pauli1](gate.idx1*2-1),
         pauli_perm_qc[gate.pauli2](gate.idx2*2-1),
-        SparseGate(two_perm_qc[gate.double], (gate.idx1*2-1, gate.idx2*2-1)),
-        SparseGate(two_perm_qc[gate.double], (gate.idx1*2, gate.idx2*2)),
+        SparseGate(double_perm_qc[gate.double], (gate.idx1*2-1, gate.idx2*2-1)),
+        SparseGate(double_perm_qc[gate.double], (gate.idx1*2, gate.idx2*2)),
         SparseGate(one_perm_qc[gate.single1], (gate.idx1*2-1,)),
         SparseGate(one_perm_qc[gate.single1], (gate.idx1*2,)),
         SparseGate(one_perm_qc[gate.single2], (gate.idx2*2-1,)),
         SparseGate(one_perm_qc[gate.single2], (gate.idx2*2,)),
+    ]
+end
+
+function toQCcircuit(gate::CNOTPerm)
+    return [
+        SparseGate(good_perm_qc[gate.single1][1], (gate.idx1*2-1,)),
+        SparseGate(good_perm_qc[gate.single1][2], (gate.idx1*2,)),
+        SparseGate(good_perm_qc[gate.single2][1], (gate.idx2*2-1,)),
+        SparseGate(good_perm_qc[gate.single2][2], (gate.idx2*2,)),
+        sCNOT(gate.idx1*2-1, gate.idx2*2-1),
+        sCNOT(gate.idx1*2, gate.idx2*2)
+    ]
+end
+
+function toQCcircuit(gate::GoodSingleQubitPerm)
+    return [
+        SparseGate(good_perm_qc[gate.single][1], (gate.idx*2-1,)),
+        SparseGate(good_perm_qc[gate.single][2], (gate.idx*2,)),
     ]
 end
 
@@ -615,6 +682,39 @@ end
 
 function QuantumClifford.MixedDestabilizer(state::BellState)
     MixedDestabilizer(Stabilizer(state))
+end
+
+##############################
+# Conversion from QC to BP
+##############################
+
+# TODO two pair gates
+# TODO gates that do not preserve 0 and 00
+# TODO general interface for all gates
+function toBPpermutation1(circ) # this one works only on single pair mappings that preserve 0
+    init_states = BellState.(Iterators.product(0:1,0:1))[:]
+    init_stabs = Stabilizer.(init_states)
+    final_stabs = [mctrajectory!(copy(s), circ)[1] for s in init_stabs]
+    final_states = BellState.(final_stabs)
+    init_ints = [bit_to_int(s.phases) for s in init_states]
+    final_ints = [bit_to_int(s.phases) for s in final_states]
+    i = findfirst(==(tuple(final_ints...)), good_perm_tuple)
+    return GoodSingleQubitPerm(i,1)
+end
+
+function BellState(s::Stabilizer)
+    r, c = size(s)
+    r==c || throw(ArgumentError("Conversion to `BellState` failed. The stabilizer state has to be square in order to be convertible to a `BellState`."))
+    s = canonicalize_rref!(copy(s))[1][end:-1:1]
+    bits = Bool[]
+    for i in 1:r÷2
+        j = 2i-1
+        s[j  ,j] == s[j  ,j+1] == (true, false) && all(==((false,false)), (s[j  ,k] for k in 1:c if k!=j && k!=j+1)) || throw(ArgumentError(lazy"Conversion to `BellState` failed. Row $(j  ) of the stabilizer state has to be of the form `..._XX_...` for it to be a valid `BellState`"))
+        s[j+1,j] == s[j+1,j+1] == (false, true) && all(==((false,false)), (s[j+1,k] for k in 1:c if k!=j && k!=j+1)) || throw(ArgumentError(lazy"Conversion to `BellState` failed. Row $(j+1) row of the stabilizer state has to be of the form `..._ZZ_...` for it to be a valid `BellState`"))
+        push!(bits, s.tab.phases[j]÷2)
+        push!(bits, s.tab.phases[j+1]÷2)
+    end
+    return BellState(bits)
 end
 
 end # module

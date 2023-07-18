@@ -24,7 +24,7 @@ end
 println("Starting tests with $(Threads.nthreads()) threads out of `Sys.CPU_THREADS = $(Sys.CPU_THREADS)`...")
 
 @doset "quantumclifford"
-get(ENV,"QUANTUMCLIFFORD_JET_TEST","")=="true" && @doset "jet"
+get(ENV,"JET_TEST","")=="true" && @doset "jet"
 @doset "doctests"
 
 using Aqua

@@ -6,14 +6,7 @@ using Test
 
 test_sizes = [1,2,10,63,64,65,127,128,129] # Including sizes that would test off-by-one errors in the bit encoding.
 
-# TODO finish and move to the actual library
-function BPGates.toQCcircuit(g::CNOTPerm)
-    return [
-        # MISSING STEPS
-        sCNOT(g.idx1*2-1, g.idx2*2-1),
-        sCNOT(g.idx1*2, g.idx2*2)
-    ]
-end
+##
 
 for num_bell in test_sizes[2:end]
     num_gates = 10
@@ -24,9 +17,10 @@ for num_bell in test_sizes[2:end]
     circuit3 = [rand(BellSinglePermutation,randperm(num_bell)[1:1]...) for _ in 1:num_gates]
     circuit4 = [rand(BellDoublePermutation,randperm(num_bell)[1:2]...) for _ in 1:num_gates]
     # TODO implement CNOTPerm conversions
-    circuit5 = []#[rand(CNOTPerm,randperm(num_bell)[1:2]...) for _ in 1:num_gates]
+    circuit5 = [rand(CNOTPerm,randperm(num_bell)[1:2]...) for _ in 1:num_gates]
     circuit6 = [CNOTPerm(1,1,randperm(num_bell)[1:2]...) for _ in 1:num_gates]
-    circuit = [circuit1...;circuit2...;circuit3...;circuit4...;circuit5...;circuit6...;]
+    circuit7 = [rand(GoodSingleQubitPerm,randperm(num_bell)[1:1]...) for _ in 1:num_gates]
+    circuit = [circuit1...;circuit2...;circuit3...;circuit4...;circuit5...;circuit6...;circuit7...;]
     endstate, status = mctrajectory!(copy(state), circuit)
 
     stabstate = MixedDestabilizer(copy(state))
@@ -46,8 +40,22 @@ for num_bell in test_sizes[2:end]
     @test canonicalize!(copy(stabilizerview(mstate_qc))) == canonicalize!(Stabilizer(mstate))
 end
 
+##
+
 state = BellState(2)
 for _ in 1:10
     new_state = apply!(copy(state), rand(CNOTPerm,1,2))
     @test state == new_state
 end
+
+##
+
+for n in 1:300
+    a = rand(BellState,n)
+    b = BellState(Stabilizer(a))
+    @test a==b
+end
+@test_throws ArgumentError BellState(S"ZX XZ")
+@test_throws ArgumentError BellState(S"ZX")
+@test_throws ArgumentError BellState(S"XXII ZZII IIXX Y_ZZ") # this is not really a valid stabilizer tableau anyway
+@test_throws ArgumentError BellState(ghz(4))

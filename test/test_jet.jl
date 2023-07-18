@@ -1,5 +1,6 @@
 using JET
 using Test
+using BPGates
 
 rep = report_package("BPGates";
     ignored_modules=(
