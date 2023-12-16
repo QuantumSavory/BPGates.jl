@@ -10,7 +10,8 @@
     <tr>
         <td>Continuous integration</td>
         <td>
-            <a href="https://github.com/QuantumSavory/BPGates.jl/actions?query=workflow%3ACI+branch%3Amaster"><img src="https://img.shields.io/github/actions/workflow/status/QuantumSavory/BPGates.jl/ci.yml?branch=main" alt="GitHub Workflow Status"></a>
+            <a href="https://github.com/QuantumSavory/BPGates.jl/actions?query=workflow%3ACI+branch%3Amaster"><img src="https://github.com/QuantumSavory/BPGates.jl/actions/workflows/ci.yml/badge.svg" alt="GitHub Workflow Status"></a>
+            <a href="https://buildkite.com/quantumsavory/bpgates"><img src="https://badge.buildkite.com/158b11c71354091501f5e7d3b81d53e13afc493dbb679ed580.svg" alt="Buildkite Workflow Status"></a>
         </td>
     </tr><tr></tr>
     <tr>

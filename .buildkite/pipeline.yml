@@ -1,0 +1,14 @@
+env:
+  CODECOV_TOKEN: 61f19b8a-59a0-4120-b30a-6b0cb93452c2
+  JULIA_NUM_THREADS: auto
+  QUANTUMSAVORY_PLOT_TEST: true
+  
+steps:
+  - label: "CI Buildkite"
+    plugins:
+      - JuliaCI/julia#v1:
+          version: "1"
+      - QuantumSavory/julia-xvfb#v1:
+      - JuliaCI/julia-test#v1: ~
+      - JuliaCI/julia-coverage#v1:
+          codecov: true
