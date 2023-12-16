@@ -158,7 +158,7 @@ end
 """
 Coincidence measurement on Bell pairs.
 
-The first argument, `midx`, spefies the X, Y, Z basis respectively.
+The first argument, `midx`, specifies the X, Y, Z basis respectively.
 The second argument, `sidx`, indicates which Bell pair is being measured.
 
 The state will be reset to `00` after being applied measurement.
@@ -371,7 +371,7 @@ end
 # Typically good operations
 ##############################
 
-"""A bilateral CNOT preceeded by permutations on each of the pairs that map the `00` state to itself."""
+"""A bilateral CNOT preceded by permutations on each of the pairs that map the `00` state to itself."""
 struct CNOTPerm <: BellOp
     single1::Int
     single2::Int
@@ -611,7 +611,7 @@ end
 ##############################
 
 """
-Convert a Bell perserving gate from `BPGates` representation to a sequence of Clifford gate from `QuantumClifford`.
+Convert a Bell preserving gate from `BPGates` representation to a sequence of Clifford gate from `QuantumClifford`.
 
 Translating [`BellMeasure`](@ref) is not precise,
 because a real Bell measurement would destroy the Bell pair,
