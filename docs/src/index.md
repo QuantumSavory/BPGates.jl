@@ -65,7 +65,7 @@ All of these methods would require a Monte Carlo Quantum Trajectories simulation
 
 ## Short Example
 
-You can initialize a Bell State by specifing the phases and convert it to stabilizer representation.
+You can initialize a Bell State by specifying the phases and convert it to stabilizer representation.
 ```
 julia> bell_state = BellState([0,1,1,0])
 BellState(Bool[0, 1, 1, 0])

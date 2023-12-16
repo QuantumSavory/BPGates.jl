@@ -36,6 +36,10 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
+      - uses: cjdoris/julia-downgrade-compat-action@v1
+        if: ${{ matrix.version == '1.9' }}
+        with:
+          skip: Pkg, Random
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         env:
