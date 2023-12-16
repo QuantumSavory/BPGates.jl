@@ -12,6 +12,7 @@ makedocs(
 #bib,
 doctest = false,
 clean = true,
+warnonly = :missing_docs,
 sitename = "BPGates.jl",
 format = Documenter.HTML(),
 modules = [BPGates],
