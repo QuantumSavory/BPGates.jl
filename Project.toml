@@ -1,13 +1,20 @@
 name = "BPGates"
 uuid = "2c1a90cd-bec4-4415-ae35-245016909a8f"
 authors = ["Shu Ge <geshu@mit.edu>", "Stefan Krastanov <stefan@krastanov.org>"]
-version = "1.0.2"
+version = "1.1.0"
 
 [deps]
 QuantumClifford = "0525e862-1e90-11e9-3e4d-1b39d7109de1"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[weakdeps]
+Quantikz = "b0d11df0-eea3-4d79-b4a5-421488cbf74b"
+
+[extensions]
+BPGatesQuantikzExt = "Quantikz"
+
 [compat]
+Quantikz = "1.3.1"
 QuantumClifford = "0.8, 0.9"
 Random = "1"
 julia = "1.9"
