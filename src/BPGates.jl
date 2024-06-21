@@ -9,7 +9,7 @@ export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
-    PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
+    PauliNoiseOp, PauliZOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -168,6 +168,7 @@ struct BellMeasure <: QuantumClifford.AbstractMeasurement
     sidx::Int
     function BellMeasure(p,s)
         1 <= p <= 3 || throw(ArgumentError("The basis measurement index needs to be between 1 and 3"))
+        # why is there no check here for the measured bell pair? ensuring that the index is >= 1?
         new(p,s)
     end
 end
@@ -215,8 +216,11 @@ end
 """The permutations realized by [`BellPauliPermutation`](@ref)."""
 const pauli_perm_tuple = (
     (1, 2, 3, 4),
+    # Z gate?
     (3, 4, 1, 2), ## X flip
+    # X gate?
     (2, 1, 4, 3), ## Z flip
+    # bit and phase flip
     (4, 3, 2, 1)  ## Y flip
 )
 
@@ -260,6 +264,7 @@ const double_perm_tuple = (
 
 """The permutations realized by [`BellDoublePermutation`](@ref) as Clifford operations."""
 const double_perm_qc = ( # TODO switch to symbolic gates
+    # Q: are these the stabilizer states for each qubit?
     C"X_ _Z Z_ _X",
     C"_X X_ _Z Z_",
     C"XX _X Z_ ZZ",
@@ -319,8 +324,11 @@ julia> bellmeasure!(BellState([0,1,1,1]), BellMeasure(2,1))
 ```
 """
 function bellmeasure!(state::BellState, op::BellMeasure) # TODO document which index corresponds to which measurement
+    # does this apply both coincidence AND anti-coincidence measurements?
+    # i assume that it's hard coded into measure_tuple
     phase = state.phases
     result = measure_tuple[bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])][op.midx]
+    # TODO: introduce latency here?
     phase[op.sidx*2-1:op.sidx*2] .= 0 # reset the measured pair to 00
     return state, result
 end
@@ -379,6 +387,7 @@ struct CNOTPerm <: BellOp
     idx2::Int
     function CNOTPerm(s1,s2,i1,i2)
         (1 <= s1 <= 6 && 1 <= s2 <= 6) || throw(ArgumentError("The permutation index needs to be between 1 and 6."))
+        # no other checks on the BP indices? maybe that's the job of the other component
         (i1 > 0 && i2 > 0) || throw(ArgumentError("The Bell pair indices have to be positive integers."))
         i1 != i2 || throw(ArgumentError("The gate has to act on two different Bell pairs, i.e. idx1!=idx2."))
         new(s1,s2,i1,i2)
@@ -422,6 +431,7 @@ const cnot_perm = (1, 2, 11, 12, 6, 5, 16, 15, 9, 10, 3, 4, 14, 13, 8, 7)
 
 function QuantumClifford.apply!(state::BellState, g::CNOTPerm) # TODO abstract away the permutation application as it is used by other gates too
     phase = state.phases
+    # why can you do inbounds here?
     @inbounds phase_idxa = bit_to_int(phase[g.idx1*2-1],phase[g.idx1*2])
     @inbounds phase_idxb = bit_to_int(phase[g.idx2*2-1],phase[g.idx2*2])
     if phase_idxa==phase_idxb==1
@@ -471,7 +481,10 @@ end
 
 """A wrapper for `BellGate` that implements Pauli noise in addition to the gate."""
 struct PauliNoiseBellGate{G} <: BellOp where {G<:BellOp} # TODO make it work with the QuantumClifford noise ops
+    # to do the above TODO, probably have to make it match some interface?
     g::G
+    # probability that the state changes in these bases after the noise is applied
+    # probability that the qubit at the specified index changes to an X gate.
     px::Float64
     py::Float64
     pz::Float64
@@ -507,6 +520,7 @@ end
 function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     i = g.idx
     # TODO repetition with ...NoisyReset and PauliNoise...
+    # ^ ?
     r = rand()
     if r<g.px
         apply!(state, BellPauliPermutation(2, i))
@@ -514,6 +528,21 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
         apply!(state, BellPauliPermutation(3, i))
     elseif r<g.px+g.pz+g.py
         apply!(state, BellPauliPermutation(4, i))
+    end
+    return state
+end
+
+struct PauliZOp <: BellOp
+    idx::Int
+    pz::Float64
+end
+
+function QuantumClifford.apply!(state::BellState, g::PauliZOp)
+    i = g.idx
+    r = rand()
+    if r<g.pz
+        # I believe this actually is a Z flip.
+        apply!(state, BellPauliPermutation(2, i))
     end
     return state
 end
@@ -527,7 +556,9 @@ end
 """A wrapper for [`BellMeasure`](@ref) that implements measurement noise and Pauli noise after the reset."""
 struct NoisyBellMeasureNoisyReset <: BellOp # TODO make it work with the QuantumClifford noise ops
     m::BellMeasure
+    # this p is the probability that the incorrect measurement is returned?
     p::Float64
+    # probability of resetting to a different Bell state after measurement
     px::Float64
     py::Float64
     pz::Float64
@@ -538,8 +569,10 @@ function QuantumClifford.applywstatus!(state::BellState, op::NoisyBellMeasure)
     state, result⊻(rand()<op.p) ? continue_stat : failure_stat
 end
 
+# This function is like a 'continuation' of the above function
 function QuantumClifford.applywstatus!(state::BellState, op::NoisyBellMeasureNoisyReset)
     state, result = bellmeasure!(state, op.m)
+    # pretty high probability of flipping to a correct measurement?
     cont = result⊻(rand()<op.p)
     cont && apply!(state, PauliNoiseOp(op.m.sidx,op.px,op.py,op.pz))
     state, cont ? continue_stat : failure_stat
