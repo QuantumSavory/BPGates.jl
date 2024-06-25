@@ -24,11 +24,11 @@ end
 println("Starting tests with $(Threads.nthreads()) threads out of `Sys.CPU_THREADS = $(Sys.CPU_THREADS)`...")
 
 @doset "quantumclifford"
+@doset "quantikz"
 get(ENV,"JET_TEST","")=="true" && @doset "jet"
 @doset "doctests"
 
 using Aqua
 doset("aqua") && begin
-    Aqua.test_all(BPGates, ambiguities=false)
-    Aqua.test_ambiguities([BPGates,Core]) # otherwise Base causes false positives
+    Aqua.test_all(BPGates)
 end
