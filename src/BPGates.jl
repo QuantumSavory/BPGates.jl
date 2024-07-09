@@ -5,6 +5,8 @@ using QuantumClifford.Experimental.NoisyCircuits
 
 using Random
 
+using Symbolics
+
 export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
@@ -418,6 +420,7 @@ const h = tHadamard
 const p = tPhase
 const hp = h*p
 const ph = p*h
+# TODO: What is this????
 const good_perm_qc = ( # From the appendix of Optimized Entanglement Purification, but be careful with index notation being different
     (tId1,tId1), # TODO switch to symbolic gates
     (h*ph*ph,h*hp*hp*hp*hp),
@@ -546,6 +549,19 @@ function QuantumClifford.apply!(state::BellState, g::PauliZOp)
     end
     return state
 end
+
+# TODO: continue from here
+@variables lambda
+mixed_state_tuple = (
+    ()
+)
+
+struct MixedStateOp <: BellOp
+    idx::Int
+    lambda::Float64
+end
+
+function QuantumClifford.apply!()
 
 """A wrapper for [`BellMeasure`](@ref) that implements measurement noise."""
 struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
