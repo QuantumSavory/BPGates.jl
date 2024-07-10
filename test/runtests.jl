@@ -27,6 +27,7 @@ println("Starting tests with $(Threads.nthreads()) threads out of `Sys.CPU_THREA
 @doset "quantikz"
 get(ENV,"JET_TEST","")=="true" && @doset "jet"
 @doset "doctests"
+@doset "bpgates"
 
 using Aqua
 doset("aqua") && begin

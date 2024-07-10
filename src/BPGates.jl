@@ -5,7 +5,7 @@ using QuantumClifford.Experimental.NoisyCircuits
 
 using Random
 
-using Symbolics
+# using Symbolics
 
 export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
@@ -537,6 +537,8 @@ end
 
 struct PauliZOp <: BellOp
     idx::Int
+    # assert that 0 <= pz <= 1? not strictly necessary. it wouldn't make sense, but it
+    # also wouldn't break the code. natural floor and ceiling here.
     pz::Float64
 end
 
@@ -550,18 +552,18 @@ function QuantumClifford.apply!(state::BellState, g::PauliZOp)
     return state
 end
 
-# TODO: continue from here
-@variables lambda
-mixed_state_tuple = (
-    ()
-)
+# # TODO: continue from here
+# @variables lambda
+# mixed_state_tuple = (
+#     ()
+# )
 
-struct MixedStateOp <: BellOp
-    idx::Int
-    lambda::Float64
-end
+# struct MixedStateOp <: BellOp
+#     idx::Int
+#     lambda::Float64
+# end
 
-function QuantumClifford.apply!()
+# function QuantumClifford.apply!()
 
 """A wrapper for [`BellMeasure`](@ref) that implements measurement noise."""
 struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
