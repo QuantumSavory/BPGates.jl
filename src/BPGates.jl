@@ -552,18 +552,22 @@ function QuantumClifford.apply!(state::BellState, g::PauliZOp)
     return state
 end
 
-# # TODO: continue from here
-# @variables lambda
-# mixed_state_tuple = (
-#     ()
-# )
+# TODO: continue from here
+# TODO: assert that the values add to 1
+@variables λ
+mixed_state_tuple = (
+    (0.5*λ^2 - λ + 1, 0.5*λ*(1 - λ), 0.5*λ^2, 0.5*λ*(1 - λ)),
+    (0.5*λ, 1 - λ, 0.5*λ, 0),
+    (0.5*λ^2, 0.5*λ*(1 - λ), 0.5*λ^2 - λ + 1, 0.5*λ*(1 - λ)),
+    (0.5*λ, 0, 0.5*λ, 1 - λ)
+)
 
-# struct MixedStateOp <: BellOp
-#     idx::Int
-#     lambda::Float64
-# end
+struct MixedStateOp <: BellOp
+    idx::Int
+    lambda::Float64
+end
 
-# function QuantumClifford.apply!()
+function QuantumClifford.apply!()
 
 """A wrapper for [`BellMeasure`](@ref) that implements measurement noise."""
 struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
