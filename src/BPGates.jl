@@ -552,22 +552,48 @@ function QuantumClifford.apply!(state::BellState, g::PauliZOp)
     return state
 end
 
-# # TODO: continue from here
-# # TODO: assert that the values add to 1
-# @variables λ
-# mixed_state_tuple = (
-#     (0.5*λ^2 - λ + 1, 0.5*λ*(1 - λ), 0.5*λ^2, 0.5*λ*(1 - λ)),
-#     (0.5*λ, 1 - λ, 0.5*λ, 0),
-#     (0.5*λ^2, 0.5*λ*(1 - λ), 0.5*λ^2 - λ + 1, 0.5*λ*(1 - λ)),
-#     (0.5*λ, 0, 0.5*λ, 1 - λ)
-# )
+# TODO: continue from here
+# TODO: assert that the values add to 1
+# This is NOT at all 'extensible' (though, it is 'fast')
+# TODO: Honestly this doesn't make that much sense to me. Think about why
+# this works.
+@variables λ
+mixed_state_tuple = (
+    (0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ), 0.5 * λ^2, 0.5 * λ * (1 - λ)),
+    (0.5 * λ, 1 - λ, 0.5 * λ, 0),
+    (0.5 * λ^2, 0.5 * λ * (1 - λ), 0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ)),
+    (0.5 * λ, 0, 0.5 * λ, 1 - λ)
+)
 
-# struct MixedStateOp <: BellOp
-#     idx::Int
-#     lambda::Float64
-# end
+struct MixedStateOp <: BellOp
+    idx::Int
+    lambda::Float64
+end
 
-# function QuantumClifford.apply!()
+function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
+    state_idx = g.idx
+    phase = state.phases
+    @inbounds phase_idx = bit_to_int(phase[state_idx * 2 - 1],phase[state_idx * 2])
+    rand_prob_val = rand()
+    transition_probs = mixed_state_tuple[phase_idx]
+    # TODO: hardcoded for speed, BUT change this to a macro for readability.
+    new_phase_idx = 0
+    if rand_prob_val < transition_probs[1]
+        new_phase_idx = 1
+    else if rand_prob_val < transition_probs[1] + transition_probs[2]
+        new_phase_idx = 2
+    else if rand_prob_val < transition_probs[1] + transition_probs[2] + transition_probs[3]
+        new_phase_idx = 3
+    else
+        new_phase_idx = 4
+    end
+    # this should never happen; can remove for speed
+    @assert new_phase_idx != 0
+    state_bit1, state_bit2 = int_to_bit(new_phase_idx, Val(2))
+    @inbounds phase[state_idx * 2 - 1] = state_bit1
+    @inbounds phase[state_idx * 2] = state_bit2
+    return state
+end
 
 """A wrapper for [`BellMeasure`](@ref) that implements measurement noise."""
 struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
