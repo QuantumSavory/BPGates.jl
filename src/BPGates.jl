@@ -535,8 +535,12 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     return state
 end
 
+# Type for abstracting away noisy operations on bell states.
 abstract type AbstractNoiseBellOp <: BellOp end
 
+"""
+PauliZOp(idx, pz) causes qubit at idx `idx` to have a Z flip with probabilty `pz`.
+"""
 struct PauliZOp <: AbstractNoiseBellOp
     idx::Int
     # assert that 0 <= pz <= 1? not strictly necessary. it wouldn't make sense, but it
@@ -559,6 +563,7 @@ end
 # This is NOT at all 'extensible' (though, it is 'fast')
 # TODO: Honestly this doesn't make that much sense to me. Think about why
 # this works.
+# Defines the probabilities of transitioning from one bell state to another
 @variables λ
 mixed_state_tuple = (
     (0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ), 0.5 * λ^2, 0.5 * λ * (1 - λ)),
@@ -567,6 +572,10 @@ mixed_state_tuple = (
     (0.5 * λ, 0, 0.5 * λ, 1 - λ)
 )
 
+"""
+MixedStateOp(idx, lambda) causes Bell state at idx `idx` to change to another
+Bell state determined by `mixed_state_tuple` and `lambda`.
+"""
 struct MixedStateOp <: AbstractNoiseBellOp
     idx::Int
     lambda::Float64
