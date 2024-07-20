@@ -5,13 +5,13 @@ using QuantumClifford.Experimental.NoisyCircuits
 
 using Random
 
-# using Symbolics
+using Symbolics
 
 export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
-    PauliNoiseOp, PauliZOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
+    PauliNoiseOp, PauliZOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset, AbstractNoiseBellOp
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -535,7 +535,9 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     return state
 end
 
-struct PauliZOp <: BellOp
+abstract type AbstractNoiseBellOp <: BellOp end
+
+struct PauliZOp <: AbstractNoiseBellOp
     idx::Int
     # assert that 0 <= pz <= 1? not strictly necessary. it wouldn't make sense, but it
     # also wouldn't break the code. natural floor and ceiling here.
@@ -565,7 +567,7 @@ mixed_state_tuple = (
     (0.5 * λ, 0, 0.5 * λ, 1 - λ)
 )
 
-struct MixedStateOp <: BellOp
+struct MixedStateOp <: AbstractNoiseBellOp
     idx::Int
     lambda::Float64
 end
@@ -580,9 +582,9 @@ function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
     new_phase_idx = 0
     if rand_prob_val < transition_probs[1]
         new_phase_idx = 1
-    else if rand_prob_val < transition_probs[1] + transition_probs[2]
+    elseif rand_prob_val < transition_probs[1] + transition_probs[2]
         new_phase_idx = 2
-    else if rand_prob_val < transition_probs[1] + transition_probs[2] + transition_probs[3]
+    elseif rand_prob_val < transition_probs[1] + transition_probs[2] + transition_probs[3]
         new_phase_idx = 3
     else
         new_phase_idx = 4
