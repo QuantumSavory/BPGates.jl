@@ -6,7 +6,6 @@ version = "1.1.0"
 [deps]
 QuantumClifford = "0525e862-1e90-11e9-3e4d-1b39d7109de1"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [weakdeps]
 Quantikz = "b0d11df0-eea3-4d79-b4a5-421488cbf74b"
