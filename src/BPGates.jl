@@ -564,6 +564,7 @@ end
 # this works.
 # Defines the probabilities of transitioning from one bell state to another
 function get_mixed_transition_probs(λ::Float64, cur_state_idx::Int)
+    # 0 <= λ <= 1 (λ = 1 - e ^(-t / T1))
     mixed_state_tuple = (
         (0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ), 0.5 * λ^2, 0.5 * λ * (1 - λ)),
         (0.5 * λ, 1 - λ, 0.5 * λ, 0),
