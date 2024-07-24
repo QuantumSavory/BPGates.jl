@@ -11,7 +11,8 @@ export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
-    PauliNoiseOp, PauliZOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset, AbstractNoiseBellOp
+    PauliNoiseOp, PauliZOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset, AbstractNoiseBellOp,
+    MixedStateOp
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -587,6 +588,14 @@ function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
     @inbounds phase_idx = bit_to_int(phase[state_idx * 2 - 1],phase[state_idx * 2])
     rand_prob_val = rand()
     transition_probs = mixed_state_tuple[phase_idx]
+    # println("QuantumClifford.apply!(..., MixedStateOp): initial transition_probs: $transition_probs")
+    # println("QuantumClifford.apply!(..., MixedStateOp): initial typeof(transition_probs): $(typeof(transition_probs))")
+    evaluated_tuple = map(expr -> Symbolics.substitute(expr, λ => g.lambda), transition_probs)
+    # println("QuantumClifford.apply!(..., MixedStateOp): evaluated_tuple: $evaluated_tuple")
+    # println("QuantumClifford.apply!(..., MixedStateOp): typeof(evaluated_tuple): $(typeof(evaluated_tuple))")
+    transition_probs = map(x -> Symbolics.value(x), evaluated_tuple)
+    # println("QuantumClifford.apply!(..., MixedStateOp): transition_probs: $transition_probs")
+    # println("QuantumClifford.apply!(..., MixedStateOp): typeof(transition_probs): $(typeof(transition_probs))")
     # TODO: hardcoded for speed, BUT change this to a macro for readability.
     new_phase_idx = 0
     if rand_prob_val < transition_probs[1]
