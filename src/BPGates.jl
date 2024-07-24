@@ -5,8 +5,6 @@ using QuantumClifford.Experimental.NoisyCircuits
 
 using Random
 
-using Symbolics
-
 export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
@@ -565,13 +563,15 @@ end
 # TODO: Honestly this doesn't make that much sense to me. Think about why
 # this works.
 # Defines the probabilities of transitioning from one bell state to another
-@variables λ
-mixed_state_tuple = (
-    (0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ), 0.5 * λ^2, 0.5 * λ * (1 - λ)),
-    (0.5 * λ, 1 - λ, 0.5 * λ, 0),
-    (0.5 * λ^2, 0.5 * λ * (1 - λ), 0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ)),
-    (0.5 * λ, 0, 0.5 * λ, 1 - λ)
-)
+function get_mixed_transition_probs(λ::Float64, cur_state_idx::Int)
+    mixed_state_tuple = (
+        (0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ), 0.5 * λ^2, 0.5 * λ * (1 - λ)),
+        (0.5 * λ, 1 - λ, 0.5 * λ, 0),
+        (0.5 * λ^2, 0.5 * λ * (1 - λ), 0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ)),
+        (0.5 * λ, 0, 0.5 * λ, 1 - λ)
+    )
+    return mixed_state_tuple[cur_state_idx]
+end
 
 """
 MixedStateOp(idx, lambda) causes Bell state at idx `idx` to change to another
@@ -587,15 +587,7 @@ function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
     phase = state.phases
     @inbounds phase_idx = bit_to_int(phase[state_idx * 2 - 1],phase[state_idx * 2])
     rand_prob_val = rand()
-    transition_probs = mixed_state_tuple[phase_idx]
-    # println("QuantumClifford.apply!(..., MixedStateOp): initial transition_probs: $transition_probs")
-    # println("QuantumClifford.apply!(..., MixedStateOp): initial typeof(transition_probs): $(typeof(transition_probs))")
-    evaluated_tuple = map(expr -> Symbolics.substitute(expr, λ => g.lambda), transition_probs)
-    # println("QuantumClifford.apply!(..., MixedStateOp): evaluated_tuple: $evaluated_tuple")
-    # println("QuantumClifford.apply!(..., MixedStateOp): typeof(evaluated_tuple): $(typeof(evaluated_tuple))")
-    transition_probs = map(x -> Symbolics.value(x), evaluated_tuple)
-    # println("QuantumClifford.apply!(..., MixedStateOp): transition_probs: $transition_probs")
-    # println("QuantumClifford.apply!(..., MixedStateOp): typeof(transition_probs): $(typeof(transition_probs))")
+    transition_probs = get_mixed_transition_probs(g.lambda, phase_idx)
     # TODO: hardcoded for speed, BUT change this to a macro for readability.
     new_phase_idx = 0
     if rand_prob_val < transition_probs[1]
