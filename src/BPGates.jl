@@ -10,7 +10,7 @@ export BellState,
     BellMeasure, bellmeasure!,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
     PauliNoiseOp, PauliZOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset, AbstractNoiseBellOp,
-    MixedStateOp
+    MixedStateOp, AsymmDepOp
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -605,6 +605,29 @@ function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
     state_bit1, state_bit2 = int_to_bit(new_phase_idx, Val(2))
     @inbounds phase[state_idx * 2 - 1] = state_bit1
     @inbounds phase[state_idx * 2] = state_bit2
+    return state
+end
+
+struct AsymmDepOp <: AbstractNoiseBellOp
+    idx::Int
+    px::Float64
+    py::Float64
+    pz::Float64
+end
+
+function QuantumClifford.apply!(state::BellState, g::AsymmDepOp)
+    i = g.idx
+    # TODO repetition with ...NoisyReset and PauliNoise...
+    # ^ ?
+    r = rand()
+    # 2: Z, 3: X, 4: Y
+    if r<g.px
+        apply!(state, BellPauliPermutation(3, i))
+    elseif r<g.px+g.pz
+        apply!(state, BellPauliPermutation(2, i))
+    elseif r<g.px+g.pz+g.py
+        apply!(state, BellPauliPermutation(4, i))
+    end
     return state
 end
 
