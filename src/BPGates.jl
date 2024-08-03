@@ -216,6 +216,7 @@ end
 
 """The permutations realized by [`BellPauliPermutation`](@ref)."""
 const pauli_perm_tuple = (
+    # 3 is actually 2; 2 is actually 3
     (1, 2, 3, 4),
     # Z gate?
     (3, 4, 1, 2), ## X flip
@@ -231,9 +232,16 @@ const pauli_perm_qc = (sId1,sX,sZ,sY)
 function QuantumClifford.apply!(state::BellState, op::BellPauliPermutation) # TODO abstract away the permutation application as it is used by other gates too
     phase = state.phases
     @inbounds phase_idx = bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])
+    # println("QuantumClifford.apply!, BellPauliPermutation, op.sidx: $(op.sidx)")
+    # println("QuantumClifford.apply!, BellPauliPermutation, phase_idx: $phase_idx")
+    # println("QuantumClifford.apply!, BellPauliPermutation, op.pidx: $(op.pidx)")
     @inbounds perm = pauli_perm_tuple[op.pidx]
     @inbounds permuted_idx = perm[phase_idx]
+    # println("QuantumClifford.apply!, BellPauliPermutation, permuted_idx: $permuted_idx")
+    # this makes no sense. Make bit 2 go before bit1.
     bit1, bit2 = int_to_bit(permuted_idx,Val(2))
+    # println("QuantumClifford.apply!, BellPauliPermutation, bit1: $bit1")
+    # println("QuantumClifford.apply!, BellPauliPermutation, bit2: $bit2")
     @inbounds phase[op.sidx*2-1] = bit1
     @inbounds phase[op.sidx*2] = bit2
     return state
@@ -567,9 +575,9 @@ function get_mixed_transition_probs(λ::Float64, cur_state_idx::Int)
     # 0 <= λ <= 1 (λ = 1 - e ^(-t / T1))
     mixed_state_tuple = (
         (0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ), 0.5 * λ^2, 0.5 * λ * (1 - λ)),
-        (0.5 * λ, 1 - λ, 0.5 * λ, 0),
+        (0.5 * λ, 1 - λ, 0.5 * λ, 0.0),
         (0.5 * λ^2, 0.5 * λ * (1 - λ), 0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ)),
-        (0.5 * λ, 0, 0.5 * λ, 1 - λ)
+        (0.5 * λ, 0.0, 0.5 * λ, 1 - λ)
     )
     return mixed_state_tuple[cur_state_idx]
 end
@@ -583,13 +591,9 @@ struct MixedStateOp <: AbstractNoiseBellOp
     lambda::Float64
 end
 
-function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
-    state_idx = g.idx
-    phase = state.phases
-    @inbounds phase_idx = bit_to_int(phase[state_idx * 2 - 1],phase[state_idx * 2])
-    rand_prob_val = rand()
-    transition_probs = get_mixed_transition_probs(g.lambda, phase_idx)
+function select_rand_state(transition_probs::NTuple{4, Float64})
     # TODO: hardcoded for speed, BUT change this to a macro for readability.
+    rand_prob_val = rand()
     new_phase_idx = 0
     if rand_prob_val < transition_probs[1]
         new_phase_idx = 1
@@ -600,6 +604,15 @@ function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
     else
         new_phase_idx = 4
     end
+    return new_phase_idx
+end
+
+function QuantumClifford.apply!(state::BellState, g::MixedStateOp)
+    state_idx = g.idx
+    phase = state.phases
+    @inbounds phase_idx = bit_to_int(phase[state_idx * 2 - 1],phase[state_idx * 2])
+    transition_probs = get_mixed_transition_probs(g.lambda, phase_idx)
+    new_phase_idx = select_rand_state(transition_probs)
     # this should never happen; can remove for speed
     @assert new_phase_idx != 0
     state_bit1, state_bit2 = int_to_bit(new_phase_idx, Val(2))
@@ -621,6 +634,10 @@ function QuantumClifford.apply!(state::BellState, g::AsymmDepOp)
     # ^ ?
     r = rand()
     # 2: Z, 3: X, 4: Y
+    # println("QuantumClifford.apply!, AsymmDepOp")
+    # print("QuantumClifford.apply!, AsymmDepOp, px_bell: $px_bell")
+    # print("QuantumClifford.apply!, AsymmDepOp, py_bell: $py_bell")
+    # print("QuantumClifford.apply!, AsymmDepOp, pz_bell: $pz_bell")
     if r<g.px
         apply!(state, BellPauliPermutation(3, i))
     elseif r<g.px+g.pz
