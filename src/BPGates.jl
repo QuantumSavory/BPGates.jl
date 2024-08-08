@@ -437,6 +437,8 @@ const good_perm_qc = ( # From the appendix of Optimized Entanglement Purificatio
     (h*ph,p*hp)
 )
 
+# Does this only modify the second bell pair? No phase kickback?-- interesting.
+# phase kickback here contributes to a global phase
 const cnot_perm = (1, 2, 11, 12, 6, 5, 16, 15, 9, 10, 3, 4, 14, 13, 8, 7)
 
 function QuantumClifford.apply!(state::BellState, g::CNOTPerm) # TODO abstract away the permutation application as it is used by other gates too
@@ -571,7 +573,7 @@ end
 # TODO: Honestly this doesn't make that much sense to me. Think about why
 # this works.
 # Defines the probabilities of transitioning from one bell state to another
-function get_mixed_transition_probs(λ::Float64, cur_state_idx::Int)
+function get_mixed_transition_probs(λ, cur_state_idx)
     # 0 <= λ <= 1 (λ = 1 - e ^(-t / T1))
     mixed_state_tuple = (
         (0.5 * λ^2 - λ + 1, 0.5 * λ * (1 - λ), 0.5 * λ^2, 0.5 * λ * (1 - λ)),
@@ -591,7 +593,7 @@ struct MixedStateOp <: AbstractNoiseBellOp
     lambda::Float64
 end
 
-function select_rand_state(transition_probs::NTuple{4, Float64})
+function select_rand_state(transition_probs)
     # TODO: hardcoded for speed, BUT change this to a macro for readability.
     rand_prob_val = rand()
     new_phase_idx = 0
