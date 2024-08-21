@@ -1,2 +1,3 @@
 - Created an abstract noise operation class `AbstractNoiseBellOp`
 - Implemented `PauliZOp` for phase damping errors and `MixedStateOp` for amplitude damping errors
+- Added tests for `PauliZOp` and `MixedStateOp` for comparison to exact density matrix computation

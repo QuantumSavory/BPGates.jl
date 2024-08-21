@@ -273,7 +273,6 @@ const double_perm_tuple = (
 
 """The permutations realized by [`BellDoublePermutation`](@ref) as Clifford operations."""
 const double_perm_qc = ( # TODO switch to symbolic gates
-    # Q: are these the stabilizer states for each qubit?
     C"X_ _Z Z_ _X",
     C"_X X_ _Z Z_",
     C"XX _X Z_ ZZ",
@@ -333,8 +332,6 @@ julia> bellmeasure!(BellState([0,1,1,1]), BellMeasure(2,1))
 ```
 """
 function bellmeasure!(state::BellState, op::BellMeasure) # TODO document which index corresponds to which measurement
-    # does this apply both coincidence AND anti-coincidence measurements?
-    # i assume that it's hard coded into measure_tuple
     phase = state.phases
     result = measure_tuple[bit_to_int(phase[op.sidx*2-1],phase[op.sidx*2])][op.midx]
     # TODO: introduce latency here?
@@ -396,7 +393,6 @@ struct CNOTPerm <: BellOp
     idx2::Int
     function CNOTPerm(s1,s2,i1,i2)
         (1 <= s1 <= 6 && 1 <= s2 <= 6) || throw(ArgumentError("The permutation index needs to be between 1 and 6."))
-        # no other checks on the BP indices? maybe that's the job of the other component
         (i1 > 0 && i2 > 0) || throw(ArgumentError("The Bell pair indices have to be positive integers."))
         i1 != i2 || throw(ArgumentError("The gate has to act on two different Bell pairs, i.e. idx1!=idx2."))
         new(s1,s2,i1,i2)
@@ -427,7 +423,6 @@ const h = tHadamard
 const p = tPhase
 const hp = h*p
 const ph = p*h
-# TODO: What is this????
 const good_perm_qc = ( # From the appendix of Optimized Entanglement Purification, but be careful with index notation being different
     (tId1,tId1), # TODO switch to symbolic gates
     (h*ph*ph,h*hp*hp*hp*hp),
@@ -443,7 +438,6 @@ const cnot_perm = (1, 2, 11, 12, 6, 5, 16, 15, 9, 10, 3, 4, 14, 13, 8, 7)
 
 function QuantumClifford.apply!(state::BellState, g::CNOTPerm) # TODO abstract away the permutation application as it is used by other gates too
     phase = state.phases
-    # why can you do inbounds here?
     @inbounds phase_idxa = bit_to_int(phase[g.idx1*2-1],phase[g.idx1*2])
     @inbounds phase_idxb = bit_to_int(phase[g.idx2*2-1],phase[g.idx2*2])
     if phase_idxa==phase_idxb==1
@@ -532,7 +526,6 @@ end
 function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     i = g.idx
     # TODO repetition with ...NoisyReset and PauliNoise...
-    # ^ ?
     r = rand()
     if r<g.px
         apply!(state, BellPauliPermutation(2, i))
