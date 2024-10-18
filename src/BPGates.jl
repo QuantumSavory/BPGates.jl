@@ -9,7 +9,8 @@ export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
-    PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
+    PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset, 
+    BellSwap, NoisyBellSwap
 
 function int_to_bit(int,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
@@ -368,6 +369,27 @@ function QuantumClifford.apply!(state::BellState, g::BellGate)
 end
 
 ##############################
+# SWAP gate
+##############################
+
+"""SWAP gate"""
+struct BellSwap <: BellOp
+    idx1::Int
+    idx2::Int
+end
+
+function QuantumClifford.apply!(state::BellState, op::BellSwap)
+    phase = state.phases
+    @inbounds temp1 = phase[op.idx1*2-1]
+    @inbounds temp2 = phase[op.idx1*2]
+    @inbounds phase[op.idx1*2-1] = phase[op.idx2*2-1]
+    @inbounds phase[op.idx1*2] = phase[op.idx2*2]
+    @inbounds phase[op.idx2*2-1] = temp1
+    @inbounds phase[op.idx2*2] =temp2
+    return state
+end
+
+##############################
 # Typically good operations
 ##############################
 
@@ -543,6 +565,10 @@ function QuantumClifford.applywstatus!(state::BellState, op::NoisyBellMeasureNoi
     cont = result⊻(rand()<op.p)
     cont && apply!(state, PauliNoiseOp(op.m.sidx,op.px,op.py,op.pz))
     state, cont ? continue_stat : failure_stat
+end
+
+function NoisyBellSwap(idx1,idx2,px,py,pz)
+    return PauliNoiseBellGate(BellSwap(idx1,idx2), px,py,pz)
 end
 
 ##############################
