@@ -563,11 +563,35 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
             4
         end
     elseif input_state==2
-        #...
+        if     r < 0.5*λ₁
+            1
+        elseif r < 0.5*λ₁ + 1-λ₁
+            2
+        elseif r < 0.5*λ₁ + 1-λ₁  +  0.5*λ₁
+            3
+        else # r < 1 = 0.5*λ₁ + 1-λ₁  +  0.5*λ₁  + 0
+            4
+        end
     elseif input_state==3
-        #...
+        if     r < 0.25*λ₁*(λ₁+1) 
+            1
+        elseif r < 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)
+            2
+        elseif r < 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)  
+            3
+        else # r < 1 = 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)
+            4
+        end
     elseif input_state==4
-        #...
+        if     r < 0.5*λ₁
+            1
+        # elseif r < 0.5*λ₁ + 0             # output_state 2 is never reached
+        #     2
+        elseif r < 0.5*λ₁ + 0  +  0.5*λ₁
+            3
+        else # r < 1 = 0.5*λ₁ + 0  +  0.5*λ₁ + 1-λ₁
+            4
+        end
     end
  
     bit1, bit2 = int_to_bit(output_state, Val(2))
