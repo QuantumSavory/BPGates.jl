@@ -551,6 +551,7 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
     
     r = rand()
+    λ₁ = g.λ₁
 
     output_state = if input_state==1
         if     r < 0.5*λ₁^2 - λ₁ + 1
@@ -611,6 +612,7 @@ function QuantumClifford.apply!(state::BellState, g::T2NoiseOp)
     input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
     
     r = rand()
+    λ₂ = g.λ₂
 
     output_state = if input_state==1
         if     r < 0.5*λ₂^2 - λ₂ + 1
