@@ -600,6 +600,50 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     return state
 end
 
+"""Simulates T2 noise"""
+struct T2NoiseOp <: BellOp 
+    idx::Int
+    λ₂::Float64
+end
+
+function QuantumClifford.apply!(state::BellState, g::T2NoiseOp)
+    phase = state.phases
+    input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
+    
+    r = rand()
+
+    output_state = if input_state==1
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            1
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+            3
+        end
+    elseif input_state==2
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            2
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+            4
+        end
+    elseif input_state==3
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            3
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+            1
+        end
+    elseif input_state==4
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            4
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+            2
+        end
+    end
+ 
+    bit1, bit2 = int_to_bit(output_state, Val(2))
+    @inbounds phase[g.idx*2-1] = bit1
+    @inbounds phase[g.idx*2] = bit2
+    return state
+end
+
 """A wrapper for [`BellMeasure`](@ref) that implements measurement noise."""
 struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
     m::BellMeasure
