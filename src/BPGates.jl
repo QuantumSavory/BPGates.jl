@@ -12,15 +12,17 @@ export BellState,
     PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset, 
     BellSwap, NoisyBellSwap
 
-function int_to_bit(int,digits)
+const IT = Union{Int8,Int16,Int32,Int64,UInt8,UInt16,UInt32,UInt64}
+
+function int_to_bit(int::IT,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
     Bool[int>>shift&0x1 for shift in 0:digits-1]
 end
-@inline function int_to_bit(int,::Val{2}) # faster if we know we need only two bits
+@inline function int_to_bit(int::IT,::Val{2}) # faster if we know we need only two bits
     int = int - 1 # -1 so that we use julia indexing conventions
     int & 0x1, int>>1 & 0x1
 end
-@inline function int_to_bit(int,::Val{4}) # faster if we know we need only two bits
+@inline function int_to_bit(int::IT,::Val{4}) # faster if we know we need only two bits
     int = int - 1 # -1 so that we use julia indexing conventions
     int & 0x1, int>>1 & 0x1, int>>2 & 0x1, int>>3 & 0x1
 end
@@ -583,7 +585,7 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
         else # r < 1 = 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)
             4
         end
-    elseif input_state==4
+    else # input_state==4
         if     r < 0.5*λ₁
             1
         # elseif r < 0.5*λ₁ + 0             # output_state 2 is never reached
@@ -632,7 +634,7 @@ function QuantumClifford.apply!(state::BellState, g::T2NoiseOp)
         else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
             1
         end
-    elseif input_state==4
+    else # input_state==4
         if     r < 0.5*λ₂^2 - λ₂ + 1
             4
         else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
