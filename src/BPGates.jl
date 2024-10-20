@@ -9,7 +9,7 @@ export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
-    PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset, 
+    PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset,
     BellSwap, NoisyBellSwap
 
 const IT = Union{Int8,Int16,Int32,Int64,UInt8,UInt16,UInt32,UInt64}
@@ -543,7 +543,7 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
 end
 
 """Simulates twirled T1 noise"""
-struct T1NoiseOp <: BellOp 
+struct T1NoiseOp <: BellOp
     idx::Int
     λ₁::Float64
 end
@@ -551,7 +551,7 @@ end
 function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     phase = state.phases
     input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
-    
+
     r = rand()
     λ₁ = g.λ₁
 
@@ -576,11 +576,11 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
             4
         end
     elseif input_state==3
-        if     r < 0.25*λ₁*(λ₁+1) 
+        if     r < 0.25*λ₁*(λ₁+1)
             1
         elseif r < 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)
             2
-        elseif r < 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)  
+        elseif r < 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)
             3
         else # r < 1 = 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)
             4
@@ -596,7 +596,7 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
             4
         end
     end
- 
+
     bit1, bit2 = int_to_bit(output_state, Val(2))
     @inbounds phase[g.idx*2-1] = bit1
     @inbounds phase[g.idx*2] = bit2
@@ -604,7 +604,7 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
 end
 
 """Simulates T2 noise"""
-struct T2NoiseOp <: BellOp 
+struct T2NoiseOp <: BellOp
     idx::Int
     λ₂::Float64
 end
@@ -612,36 +612,36 @@ end
 function QuantumClifford.apply!(state::BellState, g::T2NoiseOp)
     phase = state.phases
     input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
-    
+
     r = rand()
     λ₂ = g.λ₂
 
     output_state = if input_state==1
         if     r < 0.5*λ₂^2 - λ₂ + 1
             1
-        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
             3
         end
     elseif input_state==2
         if     r < 0.5*λ₂^2 - λ₂ + 1
             2
-        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
             4
         end
     elseif input_state==3
         if     r < 0.5*λ₂^2 - λ₂ + 1
             3
-        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
             1
         end
     else # input_state==4
         if     r < 0.5*λ₂^2 - λ₂ + 1
             4
-        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂) 
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
             2
         end
     end
- 
+
     bit1, bit2 = int_to_bit(output_state, Val(2))
     @inbounds phase[g.idx*2-1] = bit1
     @inbounds phase[g.idx*2] = bit2
