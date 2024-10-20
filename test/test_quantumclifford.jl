@@ -1,3 +1,5 @@
+@testitem "QuantumClifford comparisons" begin
+
 using BPGates, QuantumClifford
 using QuantumClifford.Experimental.NoisyCircuits
 using Random
@@ -59,3 +61,5 @@ end
 @test_throws ArgumentError BellState(S"ZX")
 @test_throws ArgumentError BellState(S"XXII ZZII IIXX Y_ZZ") # this is not really a valid stabilizer tableau anyway
 @test_throws ArgumentError BellState(ghz(4))
+
+end
