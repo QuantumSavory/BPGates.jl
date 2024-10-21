@@ -837,12 +837,12 @@ function toBPpermutation1(circ) # this one works only on single pair mappings th
 end
 
 function BellState(s::Stabilizer)
-    r, c = size(s)
+    r, c = size(s)::Tuple{Int, Int}
     r==c || throw(ArgumentError("Conversion to `BellState` failed. The stabilizer state has to be square in order to be convertible to a `BellState`."))
-    s = canonicalize_rref!(copy(s))[1][end:-1:1]
+    s = canonicalize_rref!(copy(s))[1][end:-1:1]::Stabilizer
     bits = Bool[]
     for i in 1:r÷2
-        j = 2i-1
+        j = (2i-1)
         s[j  ,j] == s[j  ,j+1] == (true, false) && all(==((false,false)), (s[j  ,k] for k in 1:c if k!=j && k!=j+1)) || throw(ArgumentError(lazy"Conversion to `BellState` failed. Row $(j  ) of the stabilizer state has to be of the form `..._XX_...` for it to be a valid `BellState`"))
         s[j+1,j] == s[j+1,j+1] == (false, true) && all(==((false,false)), (s[j+1,k] for k in 1:c if k!=j && k!=j+1)) || throw(ArgumentError(lazy"Conversion to `BellState` failed. Row $(j+1) row of the stabilizer state has to be of the form `..._ZZ_...` for it to be a valid `BellState`"))
         push!(bits, s.tab.phases[j]÷2)
