@@ -1,4 +1,4 @@
-@testitem "JET analysis" begin
+@testitem "JET analysis" tags=[:jet] begin
 
 using JET
 using Test
