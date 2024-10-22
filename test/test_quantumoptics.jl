@@ -4,14 +4,15 @@ using Test
 
 using BPGates, QuantumClifford, QuantumOpticsBase
 
-using BPGates: T1NoiseOp
+using BPGates: T1NoiseOp, T2NoiseOp
 
 using LinearAlgebra: diag
 
 # define some BP objects
 λ = 0.2
 N = 100000
-opBP = T1NoiseOp(1, λ)
+opBP_T1 = T1NoiseOp(1, λ)
+opBP_T2 = T2NoiseOp(1, λ)
 
 # define some QO objects
 b = SpinBasis(1//2)
@@ -31,13 +32,22 @@ bell11 = (l01-l10)/sqrt(2)
 #|`11`|`-XX -ZZ`|`∣01⟩-∣10⟩`|`∣+-⟩-∣-+⟩`|`∣i₊i₋⟩-∣i₋i₊⟩`|
 
 # T1 noise in the QO formalism
-krausOp1 = projector(l0) + √(1-λ) * projector(l1)
-krausOp2 = √(λ) * projector(l0, l1')
+krausOp1_T1 = projector(l0) + √(1-λ) * projector(l1)
+krausOp2_T1 = √(λ) * projector(l0, l1')
 id = identityoperator(b)
-k1 = krausOp1⊗id
-k2 = krausOp2⊗id
-k3 = id⊗krausOp1
-k4 = id⊗krausOp2
+k1_T1 = krausOp1_T1⊗id
+k2_T1 = krausOp2_T1⊗id
+k3_T1 = id⊗krausOp1_T1
+k4_T1 = id⊗krausOp2_T1
+
+# T2 noise in the QO formalism
+krausOp1_T2 = √(1-λ/2) * (projector(l0)+projector(l1))
+krausOp2_T2 = √(λ/2) * (projector(l0)-projector(l1))
+id = identityoperator(b)
+k1_T2 = krausOp1_T2⊗id
+k2_T2 = krausOp2_T2⊗id
+k3_T2 = id⊗krausOp1_T2
+k4_T2 = id⊗krausOp2_T2
 
 # switch to the Bell basis
 to_bell_basis = projector(l00,bell00')+projector(l01,bell01')+projector(l10,bell10')+projector(l11,bell11')
@@ -46,20 +56,28 @@ for bellstateindex in 1:4
 
     # compute using BP the density matrix after T1 noise
     s = BellState(BPGates.int_to_bit(bellstateindex, Val(2)))
-    ρBP = sum([dm(Ket(Stabilizer(apply!(copy(s),opBP)))) for i in 1:N])/N
+    ρBP_T1 = sum([dm(Ket(Stabilizer(apply!(copy(s),opBP_T1)))) for i in 1:N])/N
+    ρBP_T2 = sum([dm(Ket(Stabilizer(apply!(copy(s),opBP_T2)))) for i in 1:N])/N
 
     # compute using QO the density matrix after T1 noise
     ψ = [bell00,bell10,bell01,bell11][bellstateindex]
 
     @test abs(ψ' * Ket(Stabilizer(s))) ≈ 1
     ρ0 = dm(ψ)
-    ρ1  = k1*ρ0*k1' + k2*ρ0*k2'
-    ρQO = k3*ρ1*k3' + k4*ρ1*k4'
+    ρ1_T1  = k1_T1*ρ0*k1_T1' + k2_T1*ρ0*k2_T1'
+    ρQO_T1 = k3_T1*ρ1_T1*k3_T1' + k4_T1*ρ1_T1*k4_T1'
 
-    ρbBP = to_bell_basis*ρBP*to_bell_basis'
-    ρbQO = to_bell_basis*ρQO*to_bell_basis'
+    ρbBP_T1 = to_bell_basis*ρBP_T1*to_bell_basis'
+    ρbQO_T1 = to_bell_basis*ρQO_T1*to_bell_basis'
 
-    @test isapprox(diag(ρbBP.data), diag(ρbQO.data), atol=10/sqrt(N))
+    ρ1_T2  = k1_T2*ρ0*k1_T2' + k2_T2*ρ0*k2_T2'
+    ρQO_T2 = k3_T2*ρ1_T2*k3_T2' + k4_T2*ρ1_T2*k4_T2'
+
+    ρbBP_T2 = to_bell_basis*ρBP_T2*to_bell_basis'
+    ρbQO_T2 = to_bell_basis*ρQO_T2*to_bell_basis'
+
+    @test isapprox(diag(ρbBP_T1.data), diag(ρbQO_T1.data), atol=10/sqrt(N))
+    @test isapprox(diag(ρbBP_T2.data), diag(ρbQO_T2.data), atol=10/sqrt(N))
 
 end
 

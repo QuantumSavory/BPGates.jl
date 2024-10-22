@@ -620,25 +620,25 @@ function QuantumClifford.apply!(state::BellState, g::T2NoiseOp)
         if     r < 0.5*λ₂^2 - λ₂ + 1
             1
         else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
-            3
+            2
         end
     elseif input_state==2
         if     r < 0.5*λ₂^2 - λ₂ + 1
             2
         else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
-            4
+            1
         end
     elseif input_state==3
         if     r < 0.5*λ₂^2 - λ₂ + 1
             3
         else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
-            1
+            4
         end
     else # input_state==4
         if     r < 0.5*λ₂^2 - λ₂ + 1
             4
         else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
-            2
+            3
         end
     end
 
