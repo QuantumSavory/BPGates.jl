@@ -558,41 +558,41 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     output_state = if input_state==1
         if     r < 0.5*λ₁^2 - λ₁ + 1
             1
-        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁*(1-λ₁)
-            2
-        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁*(1-λ₁)  +  0.5*λ₁^2
-            3
+        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2 
+            2 # XXX
+        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2 +  0.5*λ₁*(1-λ₁)  
+            3 # XXX
         else # r < 1 = 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁*(1-λ₁)  +  0.5*λ₁^2  +   0.5*λ₁*(1-λ₁)
             4
         end
     elseif input_state==2
-        if     r < 0.5*λ₁
+        if     r < 0.5*λ₁^2
             1
-        elseif r < 0.5*λ₁ + 1-λ₁
-            2
-        elseif r < 0.5*λ₁ + 1-λ₁  +  0.5*λ₁
-            3
-        else # r < 1 = 0.5*λ₁ + 1-λ₁  +  0.5*λ₁  + 0
+        elseif r < 0.5*λ₁^2 + 0.5*λ₁^2 -λ₁ + 1
+            2 # XXX
+        elseif r < 0.5*λ₁^2 + 0.5*λ₁^2 -λ₁ + 1 + 0.5*λ₁*(1-λ₁)
+            3 # XXX
+        else # r < 1 = 0.5*λ₁^2 + 0.5*λ₁^2 -λ₁ + 1 + 0.5*λ₁*(1-λ₁) + 0.5*λ₁*(1-λ₁)
             4
         end
     elseif input_state==3
-        if     r < 0.25*λ₁*(λ₁+1)
+        if     r < 0.5*λ₁
             1
-        elseif r < 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)
-            2
-        elseif r < 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)
-            3
-        else # r < 1 = 0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)  +  0.25*λ₁*(λ₁+1)  +  0.5*λ₁*(1-λ₁)
+        elseif r < 0.5*λ₁  +  0.5*λ₁
+            2 # XXX
+        elseif r < 0.5*λ₁  +  0.5*λ₁  +  (1-λ₁)
+            3 # XXX
+        else # r < 1 = 0.5*λ₁  +  0.5*λ₁  +  (1-λ₁)  +  0
             4
         end
     else # input_state==4
         if     r < 0.5*λ₁
             1
-        # elseif r < 0.5*λ₁ + 0             # output_state 2 is never reached
-        #     2
-        elseif r < 0.5*λ₁ + 0  +  0.5*λ₁
-            3
-        else # r < 1 = 0.5*λ₁ + 0  +  0.5*λ₁ + 1-λ₁
+        elseif r < 0.5*λ₁ + 0.5*λ₁
+            2 # XXX
+        # elseif r < 0.5*λ₁ + 0.5*λ₁ + 0             # output_state 3 is never reached
+        #     3 # XXX
+        else # r < 1 = 0.5*λ₁ + 0.5*λ₁ + 0 + 1-λ₁
             4
         end
     end
