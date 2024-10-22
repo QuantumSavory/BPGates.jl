@@ -679,6 +679,33 @@ function NoisyBellSwap(idx1,idx2,px,py,pz)
     return PauliNoiseBellGate(BellSwap(idx1,idx2), px,py,pz)
 end
 
+function thermal_relaxation_error(t1::Float64, t2::Float64, gate_time::Float64)
+    λ₁ = 1 - np.exp(-gate_time/t1)
+    t_ϕ = t1*t2 / (2*t1 - t2)
+    λ₂ = 1 - np.exp(-gate_time/t_ϕ)
+    return λ₁, λ₂
+end
+
+function Add_Thermal_Relaxation(circuit, λ₁::Float64, λ₂::Float64)                     
+    thermal_noisy_circuit = []
+    for gate in circuit 
+        push!(thermal_noisy_circuit, gate)   # apply the original gate 
+        if gate isa PauliNoiseBellGate{CNOTPerm} || gate isa PauliNoiseBellGate{BellSwap}
+            # For two-qubit gates, attach T1 and T2 noise on both qubits
+            push!(thermal_noisy_circuit, T1NoiseOp(gate.g.idx1, λ₁))
+            push!(thermal_noisy_circuit, T2NoiseOp(gate.g.idx1, λ₂))
+            push!(thermal_noisy_circuit, T1NoiseOp(gate.g.idx2, λ₁))
+            push!(thermal_noisy_circuit, T2NoiseOp(gate.g.idx2, λ₂))
+        # elseif gate isa NoisyBellMeasureNoisyReset
+        else
+            # No thermal relaxation added to measurements
+            continue
+        end
+    end
+    return thermal_noisy_circuit
+end
+
+
 ##############################
 # Random
 ##############################
