@@ -387,7 +387,7 @@ function QuantumClifford.apply!(state::BellState, op::BellSwap)
     @inbounds phase[op.idx1*2-1] = phase[op.idx2*2-1]
     @inbounds phase[op.idx1*2] = phase[op.idx2*2]
     @inbounds phase[op.idx2*2-1] = temp1
-    @inbounds phase[op.idx2*2] =temp2
+    @inbounds phase[op.idx2*2] = temp2
     return state
 end
 
@@ -542,7 +542,7 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     return state
 end
 
-"""Simulates twirled T1 noise"""
+"""Simulates bilateral twirled T1 noise with per-qubit Kraus ops `|0⟩⟨0| + √(1-λ) |1⟩⟨1|` and `√λ |0⟩⟨1|`"""
 struct T1NoiseOp <: BellOp
     idx::Int
     λ₁::Float64
@@ -558,9 +558,9 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     output_state = if input_state==1
         if     r < 0.5*λ₁^2 - λ₁ + 1
             1
-        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2 
+        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2
             2 # XXX
-        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2 +  0.5*λ₁*(1-λ₁)  
+        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2 +  0.5*λ₁*(1-λ₁)
             3 # XXX
         else # r < 1 = 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁*(1-λ₁)  +  0.5*λ₁^2  +   0.5*λ₁*(1-λ₁)
             4
@@ -603,7 +603,7 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     return state
 end
 
-"""Simulates T2 noise"""
+"""Simulates bilateral T2 noise with per-qubit Kraus ops `√(1-λ/2) I` and `√(λ/2) Z`"""
 struct T2NoiseOp <: BellOp
     idx::Int
     λ₂::Float64
@@ -686,10 +686,10 @@ function thermal_relaxation_error(t1::Float64, t2::Float64, gate_time::Float64)
     return λ₁, λ₂
 end
 
-function Add_Thermal_Relaxation(circuit, λ₁::Float64, λ₂::Float64)                     
+function Add_Thermal_Relaxation(circuit, λ₁::Float64, λ₂::Float64)
     thermal_noisy_circuit = []
-    for gate in circuit 
-        push!(thermal_noisy_circuit, gate)   # apply the original gate 
+    for gate in circuit
+        push!(thermal_noisy_circuit, gate)   # apply the original gate
         if gate isa PauliNoiseBellGate{CNOTPerm} || gate isa PauliNoiseBellGate{BellSwap}
             # For two-qubit gates, attach T1 and T2 noise on both qubits
             push!(thermal_noisy_circuit, T1NoiseOp(gate.g.idx1, λ₁))
