@@ -8,6 +8,41 @@ using BPGates: T1NoiseOp, T2NoiseOp
 
 using LinearAlgebra: diag
 
+@testset "basis states" begin
+
+# define some QO objects
+b = SpinBasis(1//2)
+l0 = spinup(b)
+l1 = spindown(b)
+l00 = l0⊗l0
+l01 = l1⊗l0 # XXX be careful with the reversed endiandness - this is ket [0 1 0 0]
+l10 = l0⊗l1 # XXX be careful with the reversed endiandness - this is ket [0 0 1 0]
+l11 = l1⊗l1
+bell00 = (l00+l11)/sqrt(2)
+bell10 = (l00-l11)/sqrt(2) # XXX                                # bellstateindex = 2
+bell01 = (l01+l10)/sqrt(2) # XXX                                # bellstateindex = 3
+bell11 = (l01-l10)/sqrt(2)
+#|`00`|`+XX +ZZ`|`∣00⟩+∣11⟩`|`∣++⟩+∣--⟩`|`∣i₊i₋⟩+∣i₋i₊⟩`|
+#|`10`|`-XX +ZZ`|`∣00⟩-∣11⟩`|`∣+-⟩+∣-+⟩`|`∣i₊i₊⟩+∣i₋i₋⟩`|       # be careful : bellstateindex = 2
+#|`01`|`+XX -ZZ`|`∣01⟩+∣10⟩`|`∣++⟩-∣--⟩`|`∣i₊i₊⟩-∣i₋i₋⟩`|       # be careful : bellstateindex = 3
+#|`11`|`-XX -ZZ`|`∣01⟩-∣10⟩`|`∣+-⟩-∣-+⟩`|`∣i₊i₋⟩-∣i₋i₊⟩`|
+
+@test BellState([0,0]) == BellState(BPGates.int_to_bit(1,2))
+@test Ket(Stabilizer(BellState([0,0]))) ≈ Ket(S"XX ZZ") ≈ bell00
+
+@test BellState([1,0]) == BellState(BPGates.int_to_bit(2,2))
+@test Ket(Stabilizer(BellState([1,0]))) ≈ Ket(S"-XX ZZ") ≈ bell10
+
+@test BellState([0,1]) == BellState(BPGates.int_to_bit(3,2))
+@test Ket(Stabilizer(BellState([0,1]))) ≈ Ket(S"XX -ZZ") ≈ bell01
+
+@test BellState([1,1]) == BellState(BPGates.int_to_bit(4,2))
+@test Ket(Stabilizer(BellState([1,1]))) ≈ Ket(S"-XX -ZZ") ≈ -bell11
+
+end
+
+@testset "T1 and T2 noise" begin
+
 # define some BP objects
 λ = 0.2
 N = 100000
@@ -79,6 +114,7 @@ for bellstateindex in 1:4
     @test isapprox(diag(ρbBP_T1.data), diag(ρbQO_T1.data), atol=10/sqrt(N))
     @test isapprox(diag(ρbBP_T2.data), diag(ρbQO_T2.data), atol=10/sqrt(N))
 
+end
 end
 
 end
