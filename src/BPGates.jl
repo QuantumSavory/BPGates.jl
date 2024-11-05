@@ -9,17 +9,20 @@ export BellState,
     BellSinglePermutation, BellDoublePermutation, BellPauliPermutation,
     BellMeasure, bellmeasure!,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
-    PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset
+    PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset,
+    BellSwap, NoisyBellSwap
 
-function int_to_bit(int,digits)
+const IT = Union{Int8,Int16,Int32,Int64,UInt8,UInt16,UInt32,UInt64}
+
+function int_to_bit(int::IT,digits)
     int = int - 1 # -1 so that we use julia indexing conventions
     Bool[int>>shift&0x1 for shift in 0:digits-1]
 end
-@inline function int_to_bit(int,::Val{2}) # faster if we know we need only two bits
+@inline function int_to_bit(int::IT,::Val{2}) # faster if we know we need only two bits
     int = int - 1 # -1 so that we use julia indexing conventions
     int & 0x1, int>>1 & 0x1
 end
-@inline function int_to_bit(int,::Val{4}) # faster if we know we need only two bits
+@inline function int_to_bit(int::IT,::Val{4}) # faster if we know we need only two bits
     int = int - 1 # -1 so that we use julia indexing conventions
     int & 0x1, int>>1 & 0x1, int>>2 & 0x1, int>>3 & 0x1
 end
@@ -368,6 +371,27 @@ function QuantumClifford.apply!(state::BellState, g::BellGate)
 end
 
 ##############################
+# SWAP gate
+##############################
+
+"""SWAP gate"""
+struct BellSwap <: BellOp
+    idx1::Int
+    idx2::Int
+end
+
+function QuantumClifford.apply!(state::BellState, op::BellSwap)
+    phase = state.phases
+    @inbounds temp1 = phase[op.idx1*2-1]
+    @inbounds temp2 = phase[op.idx1*2]
+    @inbounds phase[op.idx1*2-1] = phase[op.idx2*2-1]
+    @inbounds phase[op.idx1*2] = phase[op.idx2*2]
+    @inbounds phase[op.idx2*2-1] = temp1
+    @inbounds phase[op.idx2*2] = temp2
+    return state
+end
+
+##############################
 # Typically good operations
 ##############################
 
@@ -518,6 +542,112 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     return state
 end
 
+"""Simulates bilateral twirled T1 noise with per-qubit Kraus ops `|0⟩⟨0| + √(1-λ) |1⟩⟨1|` and `√λ |0⟩⟨1|`"""
+struct T1NoiseOp <: BellOp
+    idx::Int
+    λ₁::Float64
+end
+
+function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
+    phase = state.phases
+    input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
+
+    r = rand()
+    λ₁ = g.λ₁
+
+    output_state = if input_state==1
+        if     r < 0.5*λ₁^2 - λ₁ + 1
+            1
+        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2
+            2 # XXX
+        elseif r < 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁^2 +  0.5*λ₁*(1-λ₁)
+            3 # XXX
+        else # r < 1 = 0.5*λ₁^2 - λ₁ + 1  +  0.5*λ₁*(1-λ₁)  +  0.5*λ₁^2  +   0.5*λ₁*(1-λ₁)
+            4
+        end
+    elseif input_state==2
+        if     r < 0.5*λ₁^2
+            1
+        elseif r < 0.5*λ₁^2 + 0.5*λ₁^2 -λ₁ + 1
+            2 # XXX
+        elseif r < 0.5*λ₁^2 + 0.5*λ₁^2 -λ₁ + 1 + 0.5*λ₁*(1-λ₁)
+            3 # XXX
+        else # r < 1 = 0.5*λ₁^2 + 0.5*λ₁^2 -λ₁ + 1 + 0.5*λ₁*(1-λ₁) + 0.5*λ₁*(1-λ₁)
+            4
+        end
+    elseif input_state==3
+        if     r < 0.5*λ₁
+            1
+        elseif r < 0.5*λ₁  +  0.5*λ₁
+            2 # XXX
+        elseif r < 0.5*λ₁  +  0.5*λ₁  +  (1-λ₁)
+            3 # XXX
+        else # r < 1 = 0.5*λ₁  +  0.5*λ₁  +  (1-λ₁)  +  0
+            4
+        end
+    else # input_state==4
+        if     r < 0.5*λ₁
+            1
+        elseif r < 0.5*λ₁ + 0.5*λ₁
+            2 # XXX
+        # elseif r < 0.5*λ₁ + 0.5*λ₁ + 0             # output_state 3 is never reached
+        #     3 # XXX
+        else # r < 1 = 0.5*λ₁ + 0.5*λ₁ + 0 + 1-λ₁
+            4
+        end
+    end
+
+    bit1, bit2 = int_to_bit(output_state, Val(2))
+    @inbounds phase[g.idx*2-1] = bit1
+    @inbounds phase[g.idx*2] = bit2
+    return state
+end
+
+"""Simulates bilateral T2 noise with per-qubit Kraus ops `√(1-λ/2) I` and `√(λ/2) Z`"""
+struct T2NoiseOp <: BellOp
+    idx::Int
+    λ₂::Float64
+end
+
+function QuantumClifford.apply!(state::BellState, g::T2NoiseOp)
+    phase = state.phases
+    input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
+
+    r = rand()
+    λ₂ = g.λ₂
+
+    output_state = if input_state==1
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            1
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
+            2
+        end
+    elseif input_state==2
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            2
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
+            1
+        end
+    elseif input_state==3
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            3
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
+            4
+        end
+    else # input_state==4
+        if     r < 0.5*λ₂^2 - λ₂ + 1
+            4
+        else # r < 1 = 0.5*λ₂^2 - λ₂ + 1  +  0.5*λ₂*(2-λ₂)
+            3
+        end
+    end
+
+    bit1, bit2 = int_to_bit(output_state, Val(2))
+    @inbounds phase[g.idx*2-1] = bit1
+    @inbounds phase[g.idx*2] = bit2
+    return state
+end
+
 """A wrapper for [`BellMeasure`](@ref) that implements measurement noise."""
 struct NoisyBellMeasure <: BellOp # TODO make it work with the QuantumClifford noise ops
     m::BellMeasure
@@ -544,6 +674,11 @@ function QuantumClifford.applywstatus!(state::BellState, op::NoisyBellMeasureNoi
     cont && apply!(state, PauliNoiseOp(op.m.sidx,op.px,op.py,op.pz))
     state, cont ? continue_stat : failure_stat
 end
+
+function NoisyBellSwap(idx1,idx2,px,py,pz)
+    return PauliNoiseBellGate(BellSwap(idx1,idx2), px,py,pz)
+end
+
 
 ##############################
 # Random
@@ -703,12 +838,12 @@ function toBPpermutation1(circ) # this one works only on single pair mappings th
 end
 
 function BellState(s::Stabilizer)
-    r, c = size(s)
+    r, c = size(s)::Tuple{Int, Int}
     r==c || throw(ArgumentError("Conversion to `BellState` failed. The stabilizer state has to be square in order to be convertible to a `BellState`."))
-    s = canonicalize_rref!(copy(s))[1][end:-1:1]
+    s = canonicalize_rref!(copy(s))[1][end:-1:1]::Stabilizer
     bits = Bool[]
     for i in 1:r÷2
-        j = 2i-1
+        j = (2i-1)
         s[j  ,j] == s[j  ,j+1] == (true, false) && all(==((false,false)), (s[j  ,k] for k in 1:c if k!=j && k!=j+1)) || throw(ArgumentError(lazy"Conversion to `BellState` failed. Row $(j  ) of the stabilizer state has to be of the form `..._XX_...` for it to be a valid `BellState`"))
         s[j+1,j] == s[j+1,j+1] == (false, true) && all(==((false,false)), (s[j+1,k] for k in 1:c if k!=j && k!=j+1)) || throw(ArgumentError(lazy"Conversion to `BellState` failed. Row $(j+1) row of the stabilizer state has to be of the form `..._ZZ_...` for it to be a valid `BellState`"))
         push!(bits, s.tab.phases[j]÷2)
