@@ -4,7 +4,7 @@
     <tr>
         <td>Documentation</td>
         <td>
-            <a href="https://quantumsavory.github.io/BPGates.jl/dev"><img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Documentation of dev version"></a>
+            <a href="https://doc.quantumsavory.org/BPGates.jl/dev/"><img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Documentation of dev version"></a>
         </td>
     </tr><tr></tr>
     <tr>
