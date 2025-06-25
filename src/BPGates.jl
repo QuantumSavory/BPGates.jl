@@ -852,4 +852,11 @@ function BellState(s::Stabilizer)
     return BellState(bits)
 end
 
+# Get the qubit pairs involved in an operation
+affectedqubits(gate::PauliNoiseBellGate) = (gate.g.idx1, gate.g.idx2)
+affectedqubits(gate::NoisyBellMeasureNoisyReset) = (gate.m.sidx,)
+affectedqubits(gate::BellMeasure) = (gate.sidx,)
+affectedqubits(gate::CNOTPerm) = (gate.idx1, gate.idx2)
+affectedqubits(gate)= ()  # Default case for gates that do not involve qubits
+
 end # module
