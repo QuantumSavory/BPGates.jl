@@ -1,3 +1,7 @@
+## v1.2.2 - 2025-07-23
+
+- Extend Quantikz affectedqubits to include new gates
+
 ## v1.2.1 - 2025-06-22
 
 - Bump QuantumClifford compat.

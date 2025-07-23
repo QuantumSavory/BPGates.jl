@@ -37,4 +37,18 @@ Quantikz.QuantikzOp(op::NoisyBellMeasureNoisyReset) = Quantikz.QuantikzOp(op.m)
 Quantikz.QuantikzOp(op::T1NoiseOp) = Quantikz.U(small_vert_matrix(("\\mathcal{\\lambda}_1",round(op.λ₁, digits=2)), "\\ T_1"), op.idx)
 Quantikz.QuantikzOp(op::T2NoiseOp) = Quantikz.U(small_vert_matrix(("\\mathcal{\\lambda}_2",round(op.λ₂, digits=2)), "\\ T_2"), op.idx)
 
+# extend Quantikz.affectedqubits to include the new gates
+# Get the qubit pairs involved in an operation
+Quantikz.affectedqubits(gate::PauliNoiseBellGate) = [gate.g.idx1, gate.g.idx2]
+Quantikz.affectedqubits(gate::NoisyBellMeasureNoisyReset) = [gate.m.sidx,]
+Quantikz.affectedqubits(gate::BellMeasure) = [gate.sidx,]
+Quantikz.affectedqubits(gate::CNOTPerm) = [gate.idx1, gate.idx2]
+Quantikz.affectedqubits(gate::GoodSingleQubitPerm) = [gate.idx,]
+Quantikz.affectedqubits(gate::BellSinglePermutation) = [gate.sidx,]
+Quantikz.affectedqubits(gate::BellPauliPermutation) = [gate.sidx,]
+Quantikz.affectedqubits(gate::T1NoiseOp) = [gate.idx,]
+Quantikz.affectedqubits(gate::T2NoiseOp) = [gate.idx,]
+
+
+
 end
