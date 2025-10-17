@@ -8,7 +8,7 @@ end
 
 ## Pauli Noise
 
-[`PauliNoiseOp`](@ref) performs Pauli noise of given magnitude (chaces for X, Y, and Z errors). It is used as a primitive inside of noisy operations.
+[`PauliNoiseOp`](@ref) performs Pauli noise of given magnitude (chances for X, Y, and Z errors). It is used as a primitive inside of noisy operations.
 
 ```jldoctest
 julia> apply!(BellState([0,0]), PauliNoiseOp(1,1,0,0))
