@@ -1,6 +1,7 @@
 module BPGates
 
 using QuantumClifford
+using QuantumClifford.Experimental.NoisyCircuits
 
 using Random
 
