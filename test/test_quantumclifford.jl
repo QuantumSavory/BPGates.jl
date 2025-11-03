@@ -1,7 +1,6 @@
 @testitem "QuantumClifford comparisons" begin
 
 using BPGates, QuantumClifford
-using QuantumClifford.Experimental.NoisyCircuits
 using Random
 using BPGates: toQCcircuit
 using Test
