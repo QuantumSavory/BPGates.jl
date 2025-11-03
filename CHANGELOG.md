@@ -1,3 +1,7 @@
+## v1.2.3, v1.2.4 - 2025-11-02
+
+- Remove dependency on Experimental submodule of QuantumClifford
+
 ## v1.2.2 - 2025-07-23
 
 - Extend Quantikz affectedqubits to include new gates
