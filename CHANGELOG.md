@@ -1,3 +1,7 @@
+## v1.2.5-dev
+
+- bump julia compat to 1.12
+
 ## v1.2.3, v1.2.4 - 2025-11-02
 
 - Remove dependency on Experimental submodule of QuantumClifford
