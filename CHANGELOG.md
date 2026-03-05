@@ -1,4 +1,4 @@
-## v1.2.5 - 2026-03-5
+## v1.3.0 - 2026-03-05
 
 - Bump julia compat to 1.12
 - Bump QuantumClifford compat to 0.11
