@@ -690,12 +690,18 @@ Input is the number of shared Bell pairs in the entanglement network.
 function Random.rand(::Type{BellState}, num_bell::Int)
     return BellState(BitArray(rand(Bool,num_bell*2)))
 end
+function Random.rand(rng::Random.AbstractRNG, ::Type{BellState}, num_bell::Int)
+    return BellState(BitArray(rand(rng, Bool,num_bell*2)))
+end
 
 """
 Random [`BellGate`](@ref) on Bell pairs `i` and `j`.
 """
 function Random.rand(::Type{BellGate}, i::Int,j::Int)
     return BellGate(rand(1:4),rand(1:4),rand(1:20),rand(1:6),rand(1:6),i,j)
+end
+function Random.rand(rng::Random.AbstractRNG, ::Type{BellGate}, i::Int,j::Int)
+    return BellGate(rand(rng, 1:4),rand(rng, 1:4),rand(rng, 1:20),rand(rng, 1:6),rand(rng, 1:6),i,j)
 end
 
 """
