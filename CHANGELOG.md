@@ -1,6 +1,7 @@
-## v1.2.5-dev
+## v1.2.5 - 2026-03-5
 
-- bump julia compat to 1.12
+- Bump julia compat to 1.12
+- Bump QuantumClifford compat to 0.11
 
 ## v1.2.3, v1.2.4 - 2025-11-02
 
