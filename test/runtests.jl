@@ -1,12 +1,27 @@
+JET_flag = false
+
+if get(ENV, "JET_TEST", "") == "true"
+    JET_flag = true
+else
+    @info "Skipping JET tests -- must be explicitly enabled."
+end
+
+using Pkg
+JET_flag && Pkg.add("JET")
+
 using BPGates
 using TestItemRunner
 
 # filter for the test
 testfilter = ti -> begin
   exclude = Symbol[]
-  if get(ENV,"JET_TEST","")!="true"
+
+  if JET_flag
+    return :jet in ti.tags
+  else
     push!(exclude, :jet)
   end
+
   if !(VERSION >= v"1.10")
     push!(exclude, :doctests)
     push!(exclude, :aqua)
