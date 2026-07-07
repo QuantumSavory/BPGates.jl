@@ -44,7 +44,7 @@ struct BPCircuitNoise
     measurement::Union{Float64, Nothing}   # flip probability p, used by NoisyBellMeasure
 end
 
-function BPCircuitNoise(;
+function BPCircuitNoise(
     single_pair::Union{BPNoiseData, Nothing} = nothing,
     two_pair::Union{BPNoiseData, Nothing}    = nothing,
     idle_noise::Union{Vector{BPNoiseData}, Nothing}  = nothing;
@@ -53,9 +53,9 @@ function BPCircuitNoise(;
     return BPCircuitNoise(single_pair, two_pair, idle_noise, measurement)
 end
 
-BPCircuitNoise(noise::AbstractNois;measurement=nothing) = BPCircuitNoise(
-    single_qubit = noise,
-    two_qubit    = noise,
+BPCircuitNoise(noise::BPNoiseData;measurement=nothing) = BPCircuitNoise(
+    single_pair = noise,
+    two_pair    = noise,
     idle_noise   = [noise],
     measurement  = measurement
 )
@@ -165,7 +165,7 @@ noisify(op::BellDoublePermutation,  m::BPCircuitNoise) = noisify(op, m.two_pair)
 noisify(op::BellGate,               m::BPCircuitNoise) = noisify(op, m.two_pair)
 noisify(op::BellSwap,               m::BPCircuitNoise) = noisify(op, m.two_pair)
 noisify(op::BellMeasure,            m::BPCircuitNoise) = noisify(op, m.measurement)
-
+noisify(op::CNOTPerm, m::BPCircuitNoise) = noisify(op, m.two_pair)
 
 
 # sub dispatch methods, the next set of dispatch methods after the initial methods 
@@ -178,7 +178,7 @@ noisify(op::BellDoublePermutation, n::BPNoiseData) = [op, build_noise_op(affecte
 noisify(op::BellGate, n::BPNoiseData) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
 
 noisify(op::BellSwap, n::BPNoiseData) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
-
-noisify(op::BellMeasure, p::Float64) = [NoisyBellMeasure(op, p)]
+noisify(op::CNOTPerm, n::BPNoiseData) =  [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::BellMeasure, p::Float64) = [NoisyBellMeasureNoisyReset(op, p)]
 noisify(op::BellMeasure, ::Nothing)  = [op]
 
