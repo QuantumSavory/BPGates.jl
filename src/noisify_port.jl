@@ -1,4 +1,4 @@
-import QuantumClifford: affectedqubits, noisify, skip_idling_noise
+import QuantumClifford: affectedqubits, noisify, skip_idling_noise, append_idle_noise!, AbstractNoise, PauliNoise
 # to separate measurement ops from other types
 
 # get affectedqubits information to feed into idle noise 
@@ -14,54 +14,58 @@ affectedqubits(op::NoisyBellMeasure)       = (op.m.sidx,)
 affectedqubits(op::NoisyBellMeasureNoisyReset) = (op.m.sidx,)
 affectedqubits(op::T1NoiseOp) = (op.idx,)
 affectedqubits(op::T2NoiseOp) = (op.idx,)
+affectedqubits(op::CNOTPerm) = (op.idx1, op.idx2)
+affectedqubits(gate::PauliNoiseBellGate) = [gate.g.idx1, gate.g.idx2]
+affectedqubits(gate::GoodSingleQubitPerm) = [gate.idx,]
 
 # plain noise structs to just capture noise info, not ops
-struct PauliNoiseData
-    px::Float64
-    py::Float64
-    pz::Float64
-end
-
-struct T1NoiseData
+struct T1Noise <: AbstractNoise
     λ₁::Float64
 end
-
-struct T2NoiseData
+struct T2Noise <: AbstractNoise
     λ₂::Float64
 end
 # functions to build noise ops out of noise data, helper function used in idle noise 
-build_noise_op(idx::Int, n::PauliNoiseData) = PauliNoiseOp(idx, n.px, n.py, n.pz)
-build_noise_op(idx::Int, n::T1NoiseData)    = T1NoiseOp(idx, n.λ₁)
-build_noise_op(idx::Int, n::T2NoiseData)    = T2NoiseOp(idx, n.λ₂)
-const BPNoiseData = Union{PauliNoiseData, T1NoiseData, T2NoiseData}
+build_noise_op(idx::Int, n::PauliNoise) = PauliNoiseOp(idx, n.px, n.py, n.pz)
+
+build_noise_op(idx::Int, n::T1Noise) = T1NoiseOp(idx, n.λ₁)
+
+build_noise_op(idx::Int, n::T2Noise) = T2NoiseOp(idx, n.λ₂)
+build_noise_op(::Int, n::AbstractNoise) = throw(ArgumentError("BPGates does not support noise type $(typeof(n))."))
 
 # a circuit noise equivalent for bpgates, similar to what is implemented in noisify 
 
 struct BPCircuitNoise
-    single_pair::Union{BPNoiseData, Nothing}
-    two_pair::Union{BPNoiseData, Nothing}
-    idle_noise::Union{Vector{BPNoiseData}, Nothing}
-    measurement::Union{Float64, Nothing}   # flip probability p, used by NoisyBellMeasure
+    gate_noise::Union{AbstractNoise,Nothing}
+    idle_noise::Union{Vector{AbstractNoise},Nothing}
+    measurement::Union{Float64,Nothing} # flip probability
+end
+
+function BPCircuitNoise(;
+    gate_noise::Union{AbstractNoise,Nothing} = nothing,
+    idle_noise::Union{AbstractVector{<:AbstractNoise},Nothing} = nothing,
+    measurement::Union{Float64,Nothing} = nothing,
+)
+    converted_idle_noise = isnothing(idle_noise) ? nothing : AbstractNoise[idle_noise...]
+
+    return BPCircuitNoise(
+        gate_noise,
+        converted_idle_noise,
+        measurement,
+    )
 end
 
 function BPCircuitNoise(
-    single_pair::Union{BPNoiseData, Nothing} = nothing,
-    two_pair::Union{BPNoiseData, Nothing}    = nothing,
-    idle_noise::Union{Vector{BPNoiseData}, Nothing}  = nothing;
-    measurement::Union{Float64, Nothing}      = nothing,
+    noise::AbstractNoise;
+    measurement::Union{Float64,Nothing} = nothing,
 )
-    return BPCircuitNoise(single_pair, two_pair, idle_noise, measurement)
+    return BPCircuitNoise(
+        gate_noise = noise,
+        idle_noise = [noise],
+        measurement = measurement,
+    )
 end
-
-BPCircuitNoise(noise::BPNoiseData;measurement=nothing) = BPCircuitNoise(
-    single_pair = noise,
-    two_pair    = noise,
-    idle_noise   = [noise],
-    measurement  = measurement
-)
-
-# for idle noise 
-skip_idling_noise(op) = false  
+# for idle noise  
 skip_idling_noise(::PauliNoiseOp) = true
 skip_idling_noise(::T1NoiseOp) = true
 skip_idling_noise(::T2NoiseOp) = true
@@ -69,84 +73,13 @@ skip_idling_noise(::PauliNoiseBellGate) = true
 skip_idling_noise(::NoisyBellMeasure) = true
 skip_idling_noise(::NoisyBellMeasureNoisyReset) = true
 
-
-
-insert_idle_noise_bp(circuit::AbstractVector, ::Nothing) = circuit
-
-function insert_idle_noise_bp(circuit::AbstractVector, idle_noise::BPNoiseData)
-    isempty(circuit) && return copy(circuit)
-
-    all_qubits = [q for op in circuit
-                    if !skip_idling_noise(op)
-                    for q in affectedqubits(op)]
-    isempty(all_qubits) && return copy(circuit)
-
-    first_seen    = Dict{Int, Int}()
-    filled_up_to  = Dict{Int, Int}()
-    op_steps      = Int[]
-    active_qubits = Dict{Int, Set{Int}}()
-
-    for op in circuit
-        if skip_idling_noise(op)
-            push!(op_steps, 0)
-            continue
-        end
-
-        qs = collect(affectedqubits(op))
-        if isempty(qs)
-            push!(op_steps, 0)
-            continue
-        end
-
-        for q in qs
-            get!(filled_up_to, q, 1)
-        end
-
-        step = maximum(filled_up_to[q] for q in qs)
-        push!(op_steps, step)
-        union!(get!(active_qubits, step, Set{Int}()), qs)
-
-        for q in qs
-            get!(first_seen, q, step)
-            filled_up_to[q] = step + 1
-        end
+function append_idle_noise!(output, q::Int, idle_noise::AbstractVector{<:AbstractNoise})
+    for noise in idle_noise
+        push!(output, build_noise_op(q, noise))
     end
-
-    output  = []
-    emitted = Set{Int}()
-
-    for (op, step) in zip(circuit, op_steps)
-        if !skip_idling_noise(op) && !(step in emitted)
-            active = get(active_qubits, step, Set{Int}())
-
-            idle = sort([q for q in keys(first_seen) if !(q in active) && first_seen[q] < step])
-
-            for q in idle
-                for n in idle_noise
-                    push!(output, build_noise_op(q, n))
-                end
-            end
-
-            push!(emitted, step)
-        end
-
-        push!(output, op)
-    end
-
-    return output
 end
-
-
-
-function noisify(circuit::AbstractVector, noise_model::BPCircuitNoise)
-    idle_noisy_circuit = insert_idle_noise_bp(circuit, noise_model.idle_noise)
-    return reduce(vcat, noisify.(idle_noisy_circuit, (noise_model,)))
-end
-
 
 noisify(op, ::BPCircuitNoise) = [op]
-noisify(op, ::BPNoiseData) = [op]
-noisify(op, ::Nothing) = [op]
 
 # Already-noisy ops pass through (Very messy since there's no specific type for noisy ops)
 noisify(op::PauliNoiseOp,               ::BPCircuitNoise) = [op]
@@ -159,26 +92,27 @@ noisify(op::NoisyBellMeasureNoisyReset, ::BPCircuitNoise) = [op]
 
 
 # Initial dispatch methods (first methods that noisify goes through)
-noisify(op::BellSinglePermutation,  m::BPCircuitNoise) = noisify(op, m.single_pair)
-noisify(op::BellPauliPermutation,   m::BPCircuitNoise) = noisify(op, m.single_pair)
-noisify(op::BellDoublePermutation,  m::BPCircuitNoise) = noisify(op, m.two_pair)
-noisify(op::BellGate,               m::BPCircuitNoise) = noisify(op, m.two_pair)
-noisify(op::BellSwap,               m::BPCircuitNoise) = noisify(op, m.two_pair)
+noisify(op::BellSinglePermutation,  m::BPCircuitNoise) = noisify(op, m.gate_noise)
+noisify(op::BellPauliPermutation,   m::BPCircuitNoise) = noisify(op, m.gate_noise)
+noisify(op::BellDoublePermutation,  m::BPCircuitNoise) = noisify(op, m.gate_noise)
+noisify(op::BellGate,               m::BPCircuitNoise) = noisify(op, m.gate_noise)
+noisify(op::BellSwap,               m::BPCircuitNoise) = noisify(op, m.gate_noise)
+noisify(op::CNOTPerm, m::BPCircuitNoise)               = noisify(op, m.gate_noise)
 noisify(op::BellMeasure,            m::BPCircuitNoise) = noisify(op, m.measurement)
-noisify(op::CNOTPerm, m::BPCircuitNoise) = noisify(op, m.two_pair)
+
 
 
 # sub dispatch methods, the next set of dispatch methods after the initial methods 
-noisify(op::BellSinglePermutation, n::BPNoiseData) = [op, build_noise_op(only(affectedqubits(op)), n)]
+noisify(op::BellSinglePermutation, n::AbstractNoise) = [op, build_noise_op(only(affectedqubits(op)), n)]
 
-noisify(op::BellPauliPermutation, n::BPNoiseData) = [op, build_noise_op(only(affectedqubits(op)), n)]
+noisify(op::BellPauliPermutation, n::AbstractNoise) = [op, build_noise_op(only(affectedqubits(op)), n)]
 
-noisify(op::BellDoublePermutation, n::BPNoiseData) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::BellDoublePermutation, n::AbstractNoise) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
 
-noisify(op::BellGate, n::BPNoiseData) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::BellGate, n::AbstractNoise) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
 
-noisify(op::BellSwap, n::BPNoiseData) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
-noisify(op::CNOTPerm, n::BPNoiseData) =  [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::BellSwap, n::AbstractNoise) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::CNOTPerm, n::AbstractNoise) =  [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
 noisify(op::BellMeasure, p::Float64) = [NoisyBellMeasureNoisyReset(op, p)]
 noisify(op::BellMeasure, ::Nothing)  = [op]
 

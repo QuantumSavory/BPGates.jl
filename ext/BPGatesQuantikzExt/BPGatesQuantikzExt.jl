@@ -39,15 +39,18 @@ Quantikz.QuantikzOp(op::T2NoiseOp) = Quantikz.U(small_vert_matrix(("\\mathcal{\\
 
 # extend Quantikz.affectedqubits to include the new gates
 # Get the qubit pairs involved in an operation
-Quantikz.affectedqubits(gate::PauliNoiseBellGate) = [gate.g.idx1, gate.g.idx2]
-Quantikz.affectedqubits(gate::NoisyBellMeasureNoisyReset) = [gate.m.sidx,]
-Quantikz.affectedqubits(gate::BellMeasure) = [gate.sidx,]
-Quantikz.affectedqubits(gate::CNOTPerm) = [gate.idx1, gate.idx2]
-Quantikz.affectedqubits(gate::GoodSingleQubitPerm) = [gate.idx,]
-Quantikz.affectedqubits(gate::BellSinglePermutation) = [gate.sidx,]
-Quantikz.affectedqubits(gate::BellPauliPermutation) = [gate.sidx,]
-Quantikz.affectedqubits(gate::T1NoiseOp) = [gate.idx,]
-Quantikz.affectedqubits(gate::T2NoiseOp) = [gate.idx,]
+
+# commenting this out for now because only quantumcliffords affectedqubits needs to be extended
+
+# Quantikz.affectedqubits(gate::PauliNoiseBellGate) = [gate.g.idx1, gate.g.idx2]
+# Quantikz.affectedqubits(gate::NoisyBellMeasureNoisyReset) = [gate.m.sidx,]
+# Quantikz.affectedqubits(gate::BellMeasure) = [gate.sidx,]
+# Quantikz.affectedqubits(gate::CNOTPerm) = [gate.idx1, gate.idx2]
+# Quantikz.affectedqubits(gate::GoodSingleQubitPerm) = [gate.idx,]
+# Quantikz.affectedqubits(gate::BellSinglePermutation) = [gate.sidx,]
+# Quantikz.affectedqubits(gate::BellPauliPermutation) = [gate.sidx,]
+# Quantikz.affectedqubits(gate::T1NoiseOp) = [gate.idx,]
+# Quantikz.affectedqubits(gate::T2NoiseOp) = [gate.idx,]
 
 
 
