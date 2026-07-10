@@ -36,22 +36,4 @@ Quantikz.QuantikzOp(op::NoisyBellMeasureNoisyReset) = Quantikz.QuantikzOp(op.m)
 # Add t1 and t2 noise op visualizations, to show as a gate with 'T1' and 'T2' labels, and also the λ values in the label
 Quantikz.QuantikzOp(op::T1NoiseOp) = Quantikz.U(small_vert_matrix(("\\mathcal{\\lambda}_1",round(op.λ₁, digits=2)), "\\ T_1"), op.idx)
 Quantikz.QuantikzOp(op::T2NoiseOp) = Quantikz.U(small_vert_matrix(("\\mathcal{\\lambda}_2",round(op.λ₂, digits=2)), "\\ T_2"), op.idx)
-
-# extend Quantikz.affectedqubits to include the new gates
-# Get the qubit pairs involved in an operation
-
-# commenting this out for now because only quantumcliffords affectedqubits needs to be extended
-
-# Quantikz.affectedqubits(gate::PauliNoiseBellGate) = [gate.g.idx1, gate.g.idx2]
-# Quantikz.affectedqubits(gate::NoisyBellMeasureNoisyReset) = [gate.m.sidx,]
-# Quantikz.affectedqubits(gate::BellMeasure) = [gate.sidx,]
-# Quantikz.affectedqubits(gate::CNOTPerm) = [gate.idx1, gate.idx2]
-# Quantikz.affectedqubits(gate::GoodSingleQubitPerm) = [gate.idx,]
-# Quantikz.affectedqubits(gate::BellSinglePermutation) = [gate.sidx,]
-# Quantikz.affectedqubits(gate::BellPauliPermutation) = [gate.sidx,]
-# Quantikz.affectedqubits(gate::T1NoiseOp) = [gate.idx,]
-# Quantikz.affectedqubits(gate::T2NoiseOp) = [gate.idx,]
-
-
-
 end
