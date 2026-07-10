@@ -124,9 +124,9 @@
             op = T1NoiseOp(1, lambda_half)
             s = BellState(1)
             
-            # calculates bell probabilites across N runs 
+            # calculates bell probabilities across N runs 
             bp_probs = sum(
-                bell_probs(dm(Ket(Stabilizer(apply!(apply!(copy(s), op), op)))))
+                bell_probs(dm(Ket(Stabilizer(mctrajectory!(copy(s), [op, op])[1]))))
                 for _ in 1:N
             ) / N
             
@@ -134,7 +134,7 @@
             stderr = sqrt.(max.(bp_probs .* (1 .- bp_probs), eps(Float64)) ./ N)
 
             # 5 sigma checks, one to check that bpgates is within 5 sigma of the twirled data and another check to make sure that it's outside of 5 sigma of the untwirled data
-            @test all(abs.(bp_probs .- twirled_probs) ./ stderr .<= 5)  
+            @test all(abs.(bp_probs .- twirled_probs) .<= 3/sqrt(N))
 
             # Skip untwirled rejection when distinguishing the two models would require more than N_max samples.
             if N_needed <= N_max

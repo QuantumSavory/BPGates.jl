@@ -541,12 +541,14 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     return state
 end
 
-"""Simulates bilateral twirled T1 noise with per-qubit Kraus ops `|0⟩⟨0| + √(1-λ) |1⟩⟨1|` and `√λ |0⟩⟨1|`"""
+"""Simulates bilateral twirled T1 noise with per-qubit Kraus ops `|0⟩⟨0| + √(1-λ) |1⟩⟨1|` and `√λ |0⟩⟨1|`
+
+BPGates tracks states in a twirled form, without off-diagonal coherences. For T1 noise this is only an approximation of the true channel (unlike Pauli noise, where twirling is exact), so results may differ from a full density-matrix simulator. In particular, applying T1 in several intermediate steps may not match applying it once for the combined duration.
+"""
 struct T1NoiseOp <: BellOp
     idx::Int
     λ₁::Float64
 end
-
 function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     phase = state.phases
     input_state = bit_to_int(phase[g.idx*2-1],phase[g.idx*2]) # this is my initial state
