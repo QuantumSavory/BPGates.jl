@@ -10,8 +10,7 @@ export BellState,
     BellGate, CNOTPerm, GoodSingleQubitPerm,
     PauliNoiseOp, PauliNoiseBellGate, NoisyBellMeasure, NoisyBellMeasureNoisyReset,
     BellSwap, NoisyBellSwap, T1NoiseOp, T2NoiseOp, noisify, BPCircuitNoise, T1Noise,
-    T2Noise, PauliNoiseData
-
+    T2Noise
 const IT = Union{Int8,Int16,Int32,Int64,UInt8,UInt16,UInt32,UInt64}
 
 function int_to_bit(int::IT,digits)
