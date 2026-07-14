@@ -27,7 +27,7 @@ struct T2Noise <: AbstractNoise
 end
 # functions to build noise ops out of noise data, helper function used in idle noise 
 build_noise_op(idx::Int, n::PauliNoise) = PauliNoiseOp(idx, n.px, n.py, n.pz)
-
+build_noise_op(idx::Int, n::UnbiasedUncorrelatedNoise) = PauliNoiseOp(idx, n.p/3, n.p/3, n.p/3)
 build_noise_op(idx::Int, n::T1Noise) = T1NoiseOp(idx, n.λ₁)
 
 build_noise_op(idx::Int, n::T2Noise) = T2NoiseOp(idx, n.λ₂)

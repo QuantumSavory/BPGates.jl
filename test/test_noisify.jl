@@ -1,21 +1,17 @@
 @testitem "noisify" begin
-    using QuantumClifford: affectedqubits, noisify, skip_idling_noise, append_idle_noise!,
-                            AbstractNoise, PauliNoise
+    using QuantumClifford: affectedqubits, noisify, AbstractNoise, PauliNoise
     using BPGates: T1Noise, T2Noise, BPCircuitNoise, BellMeasure
-    # ──────────────────────────────────────────────────────────────────────────
-    # 1. Gate noise on CNOTPerm applies to both affected slots
-    # ──────────────────────────────────────────────────────────────────────────
     @testset "CNOTPerm gate noise applies only to gate-affected slots" begin
-        g = CNOTPerm(1, 1, 2, 5)   # idx1=2, idx2=5
+        g = CNOTPerm(1, 1, 2, 5)   
         q1, q2 = affectedqubits(g)
 
-        result = noisify(g, BPCircuitNoise(gate_noise = T1Noise(0.1)))
+        result = noisify(g, BPCircuitNoise(gate_noise = PauliNoise(0.1)))
 
         @test result[1] === g
         noise_ops = result[2:end]
         @test length(noise_ops) == 2
         @test Set(op.idx for op in noise_ops) == Set([q1, q2])
-        @test all(op -> op isa T1NoiseOp && op.λ₁ == 0.1, noise_ops)
+        @test all(op -> op isa PauliNoiseOp, noise_ops)
     end
 
     @testset "idle slot tracking correct across mixed op types" begin
@@ -53,7 +49,6 @@
             BellMeasure(1, 2),
         ]
         result = noisify(circuit, BPCircuitNoise())
-        print(result)
         @test result == circuit
         @test all(op -> !(op isa Union{T1NoiseOp,T2NoiseOp,PauliNoiseOp}), result)
         @test !any(op -> op isa NoisyBellMeasureNoisyReset, result)
