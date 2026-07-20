@@ -18,11 +18,19 @@ affectedqubits(op::CNOTPerm) = (op.idx1, op.idx2)
 affectedqubits(gate::GoodSingleQubitPerm) = (gate.idx,)
 
 # plain noise structs to just capture noise info, not ops
+""" T1Noise(λ₁) Amplitude damping (T1 relaxation) with decay probability `λ₁`. Applies bilaterally to both qubits of a Bell pair — see [`T1NoiseOp`](@ref) """
 struct T1Noise <: AbstractNoise
     λ₁::Float64
 end
+
+""" T2Noise(λ₂) Dephasing (T2 decoherence) with probability `λ₂`. Applies bilaterally t both qubits of a Bell pair — see [`T2NoiseOp`](@ref) """
 struct T2Noise <: AbstractNoise
     λ₂::Float64
+end
+
+""" Probability `p` that a Bell measurement outcome is flipped. A scalar wrapper so measurement noise can satisfy `CircuitNoise`'s `AbstractNoise` field. """
+struct MeasurementFlipNoise <: AbstractNoise
+    p::Float64
 end
 # functions to build noise ops out of noise data, helper function used in idle noise 
 build_noise_op(idx::Int, n::PauliNoise) = PauliNoiseOp(idx, n.px, n.py, n.pz)
@@ -41,9 +49,6 @@ skip_idling_noise(::NoisyBellMeasure) = true
 skip_idling_noise(::NoisyBellMeasureNoisyReset) = true
 
 append_idle_noise!(output, q::Int, idle_noise::Union{T1Noise, T2Noise, PauliNoise}) = push!(output, build_noise_op(q, idle_noise))
-struct MeasurementFlipNoise <: AbstractNoise
-    p::Float64
-end
 
 noisify(op::BellMeasure, n::MeasurementFlipNoise) = noisify(op, n.p)
 
