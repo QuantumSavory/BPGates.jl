@@ -18,12 +18,20 @@ affectedqubits(op::CNOTPerm) = (op.idx1, op.idx2)
 affectedqubits(gate::GoodSingleQubitPerm) = (gate.idx,)
 
 # plain noise structs to just capture noise info, not ops
-""" T1Noise(λ₁) Amplitude damping (T1 relaxation) with decay probability `λ₁`. Applies bilaterally to both qubits of a Bell pair — see [`T1NoiseOp`](@ref) """
+""" T1Noise(λ₁) Amplitude damping (T1 relaxation) with decay probability `λ₁`.
+
+!!! warning "Bilateral noise"
+    Applied to **both** qubits of a Bell pair independently — see [`T1NoiseOp`](@ref). Each qubit decays on its own physical hardware, so both halves are noised.
+"""
 struct T1Noise <: AbstractNoise
     λ₁::Float64
 end
 
-""" T2Noise(λ₂) Dephasing (T2 decoherence) with probability `λ₂`. Applies bilaterally t both qubits of a Bell pair — see [`T2NoiseOp`](@ref) """
+""" T2Noise(λ₂) Dephasing (T2 decoherence) with probability `λ₂`.
+
+!!! warning "Bilateral noise"
+    Applied to **both** qubits of a Bell pair independently — see [`T2NoiseOp`](@ref). Each qubit dephases on its own physical hardware, so both halves are noised.
+"""
 struct T2Noise <: AbstractNoise
     λ₂::Float64
 end
@@ -32,7 +40,7 @@ end
 struct MeasurementFlipNoise <: AbstractNoise
     p::Float64
 end
-# functions to build noise ops out of noise data, helper function used in idle noise 
+# functions to build noise ops out of noise data, helper function used in insert_idle_noise
 build_noise_op(idx::Int, n::PauliNoise) = PauliNoiseOp(idx, n.px, n.py, n.pz)
 build_noise_op(idx::Int, n::UnbiasedUncorrelatedNoise) = PauliNoiseOp(idx, n.p/3, n.p/3, n.p/3)
 build_noise_op(idx::Int, n::T1Noise) = T1NoiseOp(idx, n.λ₁)

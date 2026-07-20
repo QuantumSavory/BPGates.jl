@@ -492,7 +492,10 @@ end
 # Noisy
 ##############################
 
-"""A wrapper for `BellGate` that implements Pauli noise in addition to the gate."""
+"""A wrapper for `BellGate` that implements Pauli noise in addition to the gate.
+!!! warning "Applies to both gate-affected qubits, independently"
+    Unlike a bare [`PauliNoiseOp`](@ref) (single qubit), this applies Pauli noise separately to **both** qubits the wrapped gate acts on, each with the same `px`/`py`/`pz` rates. 
+"""
 struct PauliNoiseBellGate{G} <: BellOp where {G<:BellOp} # TODO make it work with the QuantumClifford noise ops
     g::G
     px::Float64
@@ -508,6 +511,9 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseBellGate)
 end
 
 """`PauliNoiseOp(idx,px,py,pz)` causes qubit-pair `idx` to flip to one of the other 3 Bell states with probabilities `px`, `py`, `pz` respectively.
+
+!!! warning "Single-qubit noise — not bilateral"
+    Applies to **one** qubit index only. A Pauli error on either half of a Bell pair produces the same effect on the pair's state, so tracking a single index fully and correctly represents the error.
 
 ```jldoctest
 julia> apply!(BellState([0,0]), PauliNoiseOp(1,1,0,0))
@@ -541,7 +547,11 @@ function QuantumClifford.apply!(state::BellState, g::PauliNoiseOp)
     return state
 end
 
-"""Simulates bilateral twirled T1 noise with per-qubit Kraus ops `|0⟩⟨0| + √(1-λ) |1⟩⟨1|` and `√λ |0⟩⟨1|`
+
+"""Simulates bilateral twirled T1 noise with per-qubit Kraus ops `|0⟩⟨0| + √(1-λ) |1⟩⟨1|` and `√λ |0⟩⟨1|`.
+
+!!! warning "Bilateral noise — affects both qubits"
+    Acts on **both** qubits of the pair, each decaying independently on its own physical hardware.
 
 Warning: BPGates tracks states in a twirled form, without off-diagonal coherences. For T1 noise this is only an approximation of the true channel, so results may differ from a full density-matrix simulator. In particular, applying T1 in several intermediate steps may not match applying it once for the combined duration.
 """
@@ -604,7 +614,11 @@ function QuantumClifford.apply!(state::BellState, g::T1NoiseOp)
     return state
 end
 
-"""Simulates bilateral T2 noise with per-qubit Kraus ops `√(1-λ/2) I` and `√(λ/2) Z`"""
+"""Simulates bilateral T2 noise with per-qubit Kraus ops `√(1-λ/2) I` and `√(λ/2) Z`.
+
+!!! warning "Bilateral noise — affects both qubits"
+    Acts on **both** qubits of the pair, each dephasing independently on its own physical hardware.
+"""
 struct T2NoiseOp <: BellOp
     idx::Int
     λ₂::Float64
