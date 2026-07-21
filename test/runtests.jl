@@ -1,13 +1,13 @@
-JET_flag = false
+JET_flag = ARGS == ["jet"]
 
-if get(ENV, "JET_TEST", "") == "true"
-    JET_flag = true
+if JET_flag
+    @info "Running JET tests in their dedicated test environment."
+    using Pkg
+    Pkg.activate(joinpath(@__DIR__, "projects", "jet"))
+    Pkg.instantiate()
 else
-    @info "Skipping JET tests -- must be explicitly enabled."
+    @info "Skipping JET tests -- pass `test_args=[\"jet\"]` to Pkg.test to enable them."
 end
-
-using Pkg
-JET_flag && Pkg.add("JET")
 
 using BPGates
 using TestItemRunner
