@@ -52,9 +52,6 @@ build_noise_op(::Int, n::AbstractNoise) = throw(ArgumentError("BPGates does not 
 skip_idling_noise(::PauliNoiseOp) = true
 skip_idling_noise(::T1NoiseOp) = true
 skip_idling_noise(::T2NoiseOp) = true
-skip_idling_noise(::PauliNoiseBellGate) = true
-skip_idling_noise(::NoisyBellMeasure) = true
-skip_idling_noise(::NoisyBellMeasureNoisyReset) = true
 
 append_idle_noise!(output, q::Int, idle_noise::Union{T1Noise, T2Noise, PauliNoise}) = push!(output, build_noise_op(q, idle_noise))
 
