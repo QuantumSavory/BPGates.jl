@@ -36,6 +36,28 @@ struct T2Noise <: AbstractNoise
     λ₂::Float64
 end
 
+"""T1T2Noise(λ₁, λ₂)
+
+Combined idle noise from simultaneous T1 relaxation and T2 dephasing.
+
+!!! warning "Approximate — sequential composition, not a joint closed-form channel"
+    Applies [`T1NoiseOp`](@ref) then [`T2NoiseOp`](@ref) in sequence within
+    the same idle window, with a twirl (loss of coherence tracking)
+    between the two. This is not identical to the true physical channel
+    where both processes act continuously and simultaneously — it is a
+    practical approximation, not an exact derivation. Both applications
+    are bilateral, per [`T1NoiseOp`](@ref)/[`T2NoiseOp`](@ref).
+"""
+struct T1T2Noise <: AbstractNoise
+    λ₁::Float64
+    λ₂::Float64
+end
+
+append_idle_noise!(output, q::Int, n::T1T2Noise) = begin
+    push!(output, T1NoiseOp(q, n.λ₁))
+    push!(output, T2NoiseOp(q, n.λ₂))
+end
+
 """ Probability `p` that a Bell measurement outcome is flipped. A scalar wrapper so measurement noise can satisfy `CircuitNoise`'s `AbstractNoise` field. """
 struct MeasurementFlipNoise <: AbstractNoise
     p::Float64
@@ -63,26 +85,9 @@ noisify(op::PauliNoiseOp,       ::CircuitNoise) = [op]
 noisify(op::T1NoiseOp,          ::CircuitNoise) = [op]
 noisify(op::T2NoiseOp,          ::CircuitNoise) = [op]
 noisify(op::PauliNoiseBellGate, ::CircuitNoise) = [op]
+noisify(op::NoisyBellMeasureNoisyReset, m::CircuitNoise) = [op]
+noisify(op::NoisyBellMeasure, noise::CircuitNoise) = [op]
 
-function noisify(op::NoisyBellMeasureNoisyReset, m::CircuitNoise)
-    isnothing(m.measurement) && return [op]
-    measurement_noise = m.measurement
-    measurement_noise isa MeasurementFlipNoise ||
-        throw(ArgumentError(
-            "BPGates measurement noise must be of type MeasurementFlipNoise or nothing"
-        ))
-    p = op.p + m.measurement.p - 2 * op.p * m.measurement.p
-    return [NoisyBellMeasureNoisyReset(op.m, p, op.px, op.py, op.pz)]
-end
-
-function noisify(op::NoisyBellMeasure, noise::CircuitNoise)
-    isnothing(noise.measurement) && return [op]
-
-    p2 = noise.measurement.p
-    p = op.p + p2 - 2 * op.p * p2
-
-    return [NoisyBellMeasure(op.m, p)]
-end
 
 # initial dispatch
 noisify(op::BellSinglePermutation, m::CircuitNoise) = noisify(op, m.single_qubit)
@@ -93,7 +98,7 @@ noisify(op::BellSwap,              m::CircuitNoise) = noisify(op, m.two_qubit)
 noisify(op::CNOTPerm,              m::CircuitNoise) = noisify(op, m.two_qubit)
 function noisify(op::BellMeasure, m::CircuitNoise)
     isnothing(m.measurement) && return [op]
-    return noisify(op, m.measurement.p)
+    return noisify(op, m.measurement)
 end
 
 
