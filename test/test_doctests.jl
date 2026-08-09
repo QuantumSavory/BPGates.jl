@@ -1,4 +1,4 @@
-@testitem "doctests" begin
+@testitem "doctests" tags=[:doctests] begin
 
 using Documenter
 using BPGates

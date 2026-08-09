@@ -1,4 +1,4 @@
-@testitem "Aqua analysis" begin
+@testitem "Aqua analysis" tags=[:aqua] begin
 
 using Aqua, BPGates
 
