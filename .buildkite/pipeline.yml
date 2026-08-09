@@ -12,5 +12,4 @@ steps:
           version: "1"
       - QuantumSavory/julia-xvfb#v1:
       - JuliaCI/julia-test#v1: ~
-      - JuliaCI/julia-coverage#v1:
-          codecov: true
+      - JuliaCI/julia-coverage#v1: ~
