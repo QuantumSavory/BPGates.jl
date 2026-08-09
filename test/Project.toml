@@ -17,3 +17,4 @@ TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 
 [compat]
 Static = ">= 0.3.2"
+TestItemRunner = "1.1.5"
