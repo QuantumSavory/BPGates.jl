@@ -1,0 +1,114 @@
+import QuantumClifford: affectedqubits, noisify, skip_idling_noise, append_idle_noise!, AbstractNoise, PauliNoise, CircuitNoise
+using QuantumClifford: insert_idle_noise
+
+# get affectedqubits information to feed into idle noise 
+affectedqubits(op::BellSinglePermutation)  = (op.sidx,)
+affectedqubits(op::BellPauliPermutation)   = (op.sidx,)
+affectedqubits(op::BellDoublePermutation)  = (op.sidx1, op.sidx2)
+affectedqubits(op::BellGate)               = (op.idx1, op.idx2)
+affectedqubits(op::BellSwap)               = (op.idx1, op.idx2)
+affectedqubits(op::BellMeasure)            = (op.sidx,)
+affectedqubits(op::PauliNoiseOp)           = (op.idx,)
+affectedqubits(op::PauliNoiseBellGate)     = (op.g.idx1, op.g.idx2)
+affectedqubits(op::NoisyBellMeasure)       = (op.m.sidx,)
+affectedqubits(op::NoisyBellMeasureNoisyReset) = (op.m.sidx,)
+affectedqubits(op::T1NoiseOp) = (op.idx,)
+affectedqubits(op::T2NoiseOp) = (op.idx,)
+affectedqubits(op::CNOTPerm) = (op.idx1, op.idx2)
+affectedqubits(gate::GoodSingleQubitPerm) = (gate.idx,)
+
+# plain noise structs to just capture noise info, not ops
+""" T1Noise(λ₁) Amplitude damping (T1 relaxation) with decay probability `λ₁`.
+
+!!! warning "Bilateral noise"
+    Applied to **both** qubits of a Bell pair independently — see [`T1NoiseOp`](@ref). Each qubit decays on its own physical hardware, so both halves are noised.
+"""
+struct T1Noise <: AbstractNoise
+    λ₁::Float64
+end
+
+""" T2Noise(λ₂) Dephasing (T2 decoherence) with probability `λ₂`.
+
+!!! warning "Bilateral noise"
+    Applied to **both** qubits of a Bell pair independently — see [`T2NoiseOp`](@ref). Each qubit dephases on its own physical hardware, so both halves are noised.
+"""
+struct T2Noise <: AbstractNoise
+    λ₂::Float64
+end
+
+"""T1T2Noise(λ₁, λ₂)
+
+Combined idle noise from simultaneous T1 relaxation and T2 dephasing.
+
+!!! warning "Approximate — sequential composition, not a joint closed-form channel"
+    Applies [`T1NoiseOp`](@ref) then [`T2NoiseOp`](@ref) in sequence within
+    the same idle window, with a twirl (loss of coherence tracking)
+    between the two. This is not identical to the true physical channel
+    where both processes act continuously and simultaneously — it is a
+    practical approximation, not an exact derivation. Both applications
+    are bilateral, per [`T1NoiseOp`](@ref)/[`T2NoiseOp`](@ref).
+"""
+struct T1T2Noise <: AbstractNoise
+    λ₁::Float64
+    λ₂::Float64
+end
+
+append_idle_noise!(output, q::Int, n::T1T2Noise) = begin
+    push!(output, T1NoiseOp(q, n.λ₁))
+    push!(output, T2NoiseOp(q, n.λ₂))
+end
+
+""" Probability `p` that a Bell measurement outcome is flipped. A scalar wrapper so measurement noise can satisfy `CircuitNoise`'s `AbstractNoise` field. """
+struct MeasurementFlipNoise <: AbstractNoise
+    p::Float64
+end
+# functions to build noise ops out of noise data, helper function used in insert_idle_noise
+build_noise_op(idx::Int, n::PauliNoise) = PauliNoiseOp(idx, n.px, n.py, n.pz)
+build_noise_op(idx::Int, n::UnbiasedUncorrelatedNoise) = PauliNoiseOp(idx, n.p/3, n.p/3, n.p/3)
+build_noise_op(idx::Int, n::T1Noise) = T1NoiseOp(idx, n.λ₁)
+build_noise_op(idx::Int, n::T2Noise) = T2NoiseOp(idx, n.λ₂)
+build_noise_op(::Int, n::AbstractNoise) = throw(ArgumentError("BPGates does not support noise type $(typeof(n))."))
+
+
+# helpers used by insert_idle_noise in QuantumClifford
+skip_idling_noise(::PauliNoiseOp) = true
+skip_idling_noise(::T1NoiseOp) = true
+skip_idling_noise(::T2NoiseOp) = true
+
+append_idle_noise!(output, q::Int, idle_noise::Union{T1Noise, T2Noise, PauliNoise}) = push!(output, build_noise_op(q, idle_noise))
+
+noisify(op::BellMeasure, n::MeasurementFlipNoise) = noisify(op, n.p)
+
+
+# "already noisy" pass-throughs 
+noisify(op::PauliNoiseOp,       ::CircuitNoise) = [op]
+noisify(op::T1NoiseOp,          ::CircuitNoise) = [op]
+noisify(op::T2NoiseOp,          ::CircuitNoise) = [op]
+noisify(op::PauliNoiseBellGate, ::CircuitNoise) = [op]
+noisify(op::NoisyBellMeasureNoisyReset, m::CircuitNoise) = [op]
+noisify(op::NoisyBellMeasure, noise::CircuitNoise) = [op]
+
+
+# initial dispatch
+noisify(op::BellSinglePermutation, m::CircuitNoise) = noisify(op, m.single_qubit)
+noisify(op::BellPauliPermutation,  m::CircuitNoise) = noisify(op, m.single_qubit)
+noisify(op::BellDoublePermutation, m::CircuitNoise) = noisify(op, m.two_qubit)
+noisify(op::BellGate,              m::CircuitNoise) = noisify(op, m.two_qubit)
+noisify(op::BellSwap,              m::CircuitNoise) = noisify(op, m.two_qubit)
+noisify(op::CNOTPerm,              m::CircuitNoise) = noisify(op, m.two_qubit)
+function noisify(op::BellMeasure, m::CircuitNoise)
+    isnothing(m.measurement) && return [op]
+    return noisify(op, m.measurement)
+end
+
+
+
+# sub dispatch methods, the next set of dispatch methods after the initial methods 
+noisify(op::BellSinglePermutation, n::AbstractNoise) = [op, build_noise_op(only(affectedqubits(op)), n)]
+noisify(op::BellPauliPermutation,  n::AbstractNoise) = [op, build_noise_op(only(affectedqubits(op)), n)]
+noisify(op::BellDoublePermutation, n::AbstractNoise) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::BellGate,              n::AbstractNoise) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::BellSwap,              n::AbstractNoise) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::CNOTPerm,              n::AbstractNoise) = [op, build_noise_op(affectedqubits(op)[1], n), build_noise_op(affectedqubits(op)[2], n)]
+noisify(op::BellMeasure, p::Float64) = [NoisyBellMeasureNoisyReset(op, p, 0.0, 0.0, 0.0)]
+noisify(op::BellMeasure, ::Nothing)  = [op]
