@@ -8,7 +8,7 @@ secrets:
 steps:
   - label: "CI Buildkite"
     plugins:
-      - JuliaCI/julia#v1:
+      - QuantumSavory/julia#v1:
           version: "1"
       - QuantumSavory/julia-xvfb#v1:
       - JuliaCI/julia-test#v1: ~
